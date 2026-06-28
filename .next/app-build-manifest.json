@@ -46,6 +46,21 @@
       "static/chunks/main-app.js",
       "static/chunks/app/(app)/crm/leads/page.js"
     ],
+    "/(app)/crm/clients/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app)/crm/clients/page.js"
+    ],
+    "/(app)/tasks/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app)/tasks/page.js"
+    ],
+    "/(app)/finance/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(app)/finance/page.js"
+    ],
     "/not-found": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
