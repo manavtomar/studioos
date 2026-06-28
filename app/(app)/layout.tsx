@@ -23,8 +23,8 @@ function ThemeToggle() {
     <button
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-      className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${
-        isDark ? 'bg-foreground/30' : 'bg-foreground/15'
+      className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none border border-border/40 ${
+        isDark ? 'bg-foreground/30' : 'bg-foreground/10'
       }`}
     >
       <span
@@ -49,11 +49,13 @@ const crmChildren = [
   { href: '/crm/leads', icon: 'person_add', label: 'Leads' },
   { href: '/crm/clients', icon: 'people', label: 'Clients' },
 ];
+const librariesChildren = [
+  { href: '/procurement', icon: 'inventory_2', label: 'Products' },
+  { href: '/procurement', icon: 'store', label: 'Vendors' },
+];
 const bottomNav = [
-  { href: '/procurement', icon: 'store', label: 'Vendor Library' },
   { href: '/tasks', icon: 'task_alt', label: 'Tasks' },
   { href: '/finance', icon: 'receipt_long', label: 'Finance' },
-  { href: '/settings', icon: 'settings', label: 'Settings' },
 ];
 
 // ── Hardcoded vendor + task search data ──────────────────────────────────────
@@ -234,6 +236,25 @@ function AppLayoutInner({ children }: { children: ReactNode }) {
                 const active = isActive(child.href);
                 return (
                   <Link key={child.href} href={child.href}
+                    className={`sidebar-item pl-2 ${active ? 'sidebar-item-active' : 'sidebar-item-hover text-muted-foreground'}`}>
+                    <span className={`${active ? 'material-icons' : 'material-icons-outlined'} nav-icon`} style={{ fontSize: 15 }}>{child.icon}</span>
+                    <span className="nav-label text-[13px]">{child.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Libraries heading */}
+          <div className="pt-4 pb-0.5 px-2.5 flex items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: '#333333' }}>Libraries</span>
+          </div>
+          <div className="flex items-start gap-0 pl-3">
+            <div className="flex flex-col flex-1 space-y-0.5">
+              {librariesChildren.map((child) => {
+                const active = isActive(child.href);
+                return (
+                  <Link key={child.label} href={child.href}
                     className={`sidebar-item pl-2 ${active ? 'sidebar-item-active' : 'sidebar-item-hover text-muted-foreground'}`}>
                     <span className={`${active ? 'material-icons' : 'material-icons-outlined'} nav-icon`} style={{ fontSize: 15 }}>{child.icon}</span>
                     <span className="nav-label text-[13px]">{child.label}</span>

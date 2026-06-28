@@ -389,9 +389,9 @@ video {
   display: none;
 }
   :root {
-    --background: 40 5% 90%;
+    --background: 47 47% 93%;
     --foreground: 0 0% 20%;
-    --card: 0 0% 100%;
+    --card: 0 0% 98%;
     --card-foreground: 0 0% 20%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 20%;
@@ -1380,9 +1380,6 @@ html.dark { color-scheme: dark; }
 }
 .max-w-\[120px\] {
   max-width: 120px;
-}
-.max-w-\[180px\] {
-  max-width: 180px;
 }
 .max-w-\[200px\] {
   max-width: 200px;

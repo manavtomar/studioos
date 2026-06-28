@@ -160,9 +160,9 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">Active Projects</h2>
             <div className="flex items-center gap-2">
-              {/* Filter icon-only — shows phases */}
+              {/* Filter icon-only — shows Current Phase */}
               <div className="relative">
-                <button onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }} title="Filter by phase"
+                <button onClick={() => { setShowFilterMenu(!showFilterMenu); setShowSortMenu(false); }} title="Filter by Current Phase"
                   className={`relative flex items-center justify-center w-8 h-8 border rounded-lg transition-colors ${
                     filterPhase !== 'All' ? 'border-foreground/30 bg-card text-foreground' : 'border-border/60 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-card'
                   }`}>
@@ -172,8 +172,8 @@ export default function DashboardPage() {
                 {showFilterMenu && (
                   <>
                     <div className="fixed inset-0 z-20" onClick={() => setShowFilterMenu(false)} />
-                    <div className="absolute right-0 mt-1 w-52 bg-popover border border-border rounded-xl shadow-lg z-30 py-2 overflow-hidden">
-                      <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Phase</p>
+                    <div className="absolute right-0 mt-1 w-52 bg-popover border border-border rounded-xl shadow-lg z-30 py-2">
+                      <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Current Phase</p>
                       {['All', ...PROJECT_PHASES].map((opt) => (
                         <button key={opt} onClick={() => { setFilterPhase(opt); setShowFilterMenu(false); }}
                           className={`filter-item ${filterPhase === opt ? 'filter-item-active' : 'filter-item-inactive'}`}>
@@ -186,19 +186,19 @@ export default function DashboardPage() {
                 )}
               </div>
 
-              {/* Sort icon-only — shows status */}
+              {/* Sort icon-only — shows Status */}
               <div className="relative">
-                <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }} title="Sort by status"
+                <button onClick={() => { setShowSortMenu(!showSortMenu); setShowFilterMenu(false); }} title="Sort by Status"
                   className={`relative flex items-center justify-center w-8 h-8 border rounded-lg transition-colors ${
                     filterStatus !== 'All Statuses' ? 'border-foreground/30 bg-card text-foreground' : 'border-border/60 bg-card/60 text-muted-foreground hover:text-foreground hover:bg-card'
                   }`}>
-                  <span className="material-icons-outlined" style={{ fontSize: 17 }}>sort</span>
+                  <span className="material-icons-outlined" style={{ fontSize: 17 }}>list_arrow</span>
                   {filterStatus !== 'All Statuses' && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-foreground" />}
                 </button>
                 {showSortMenu && (
                   <>
                     <div className="fixed inset-0 z-20" onClick={() => setShowSortMenu(false)} />
-                    <div className="absolute right-0 mt-1 w-48 bg-popover border border-border rounded-xl shadow-lg z-30 py-2 overflow-hidden">
+                    <div className="absolute right-0 mt-1 w-48 bg-popover border border-border rounded-xl shadow-lg z-30 py-2">
                       <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Status</p>
                       {STATUS_OPTIONS.map((opt) => (
                         <button key={opt} onClick={() => { setFilterStatus(opt); setShowSortMenu(false); }}
@@ -248,7 +248,7 @@ export default function DashboardPage() {
                       onClick={() => window.location.href = `/projects/${project.id}`}>
                       <td className="table-cell">
                         <p className="font-medium text-sm">{project.name}</p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[180px]">{project.address}</p>
+                        <p className="text-xs text-muted-foreground">{project.address}</p>
                       </td>
                       <td className="table-cell text-sm text-muted-foreground">{project.client?.primaryContact || '—'}</td>
                       <td className="table-cell text-sm text-muted-foreground">{project.currentPhase}</td>
