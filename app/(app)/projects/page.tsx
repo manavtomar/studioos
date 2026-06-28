@@ -42,6 +42,7 @@ export default function ProjectsPage() {
   // Dropdowns
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showTypeMenu, setShowTypeMenu] = useState(false);
 
   const [projects, setProjects] = useState(mockProjects);
 
@@ -82,15 +83,9 @@ export default function ProjectsPage() {
       });
   }, [projects, search, phaseFilter, statusFilter, typeFilter, viewMode, sortBy, sortOrder]);
 
-  const hasActiveFilters = phaseFilter !== 'All Phases' || statusFilter !== 'All Statuses' || typeFilter !== 'All Types';
+  const hasActiveFilters = phaseFilter !== 'All Phases' || statusFilter !== 'All Statuses';
+  const hasTypeFilter = typeFilter !== 'All Types';
   const activeSortLabel = SORT_OPTIONS.find(o => o.value === sortBy)?.label ?? 'Sort';
-
-  const clearFilters = () => {
-    setSearch('');
-    setPhaseFilter('All Phases');
-    setStatusFilter('All Statuses');
-    setTypeFilter('All Types');
-  };
 
   const handleNewProject = (data: NewProjectData) => {
     const newProject: Project = {
@@ -177,6 +172,34 @@ export default function ProjectsPage() {
               )}
             </div>
 
+            {/* Project Type — icon only, separate button */}
+            <div className="relative">
+              <button
+                onClick={() => { setShowTypeMenu(!showTypeMenu); setShowFilterMenu(false); setShowSortMenu(false); }}
+                title="Project Type"
+                className={`relative flex items-center justify-center w-9 h-9 border rounded-lg transition-colors ${
+                  hasTypeFilter ? 'border-foreground/30 bg-muted text-foreground' : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>event_list</span>
+                {hasTypeFilter && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-foreground" />}
+              </button>
+              {showTypeMenu && (
+                <>
+                  <div className="fixed inset-0 z-20" onClick={() => setShowTypeMenu(false)} />
+                  <div className="absolute right-0 mt-1 w-52 bg-popover border border-border rounded-xl shadow-lg z-30 py-2">
+                    <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">Project Types</p>
+                    {FILTER_TYPES.map(t => (
+                      <button key={t} onClick={() => { setTypeFilter(t); setShowTypeMenu(false); }}
+                        className={`filter-item ${typeFilter === t ? 'filter-item-active' : 'filter-item-inactive'}`}>
+                        {t}{typeFilter === t && <span className="material-icons-outlined" style={{ fontSize: 13 }}>check</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
             {/* Filter — icon only */}
             <div className="relative">
               <button
@@ -208,17 +231,9 @@ export default function ProjectsPage() {
                         {s}{statusFilter === s && <span className="material-icons-outlined" style={{ fontSize: 13 }}>check</span>}
                       </button>
                     ))}
-                    <div className="border-t border-border/40 my-1" />
-                    <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide">Type</p>
-                    {FILTER_TYPES.map(t => (
-                      <button key={t} onClick={() => setTypeFilter(t)}
-                        className={`filter-item ${typeFilter === t ? 'filter-item-active' : 'filter-item-inactive'}`}>
-                        {t}{typeFilter === t && <span className="material-icons-outlined" style={{ fontSize: 13 }}>check</span>}
-                      </button>
-                    ))}
                     {hasActiveFilters && (
                       <div className="border-t border-border/40 px-3 pt-2 pb-1">
-                        <button onClick={() => { clearFilters(); setShowFilterMenu(false); }} className="text-xs text-muted-foreground hover:text-foreground">Clear filters</button>
+                        <button onClick={() => { setPhaseFilter('All Phases'); setStatusFilter('All Statuses'); setShowFilterMenu(false); }} className="text-xs text-muted-foreground hover:text-foreground">Clear filters</button>
                       </div>
                     )}
                   </div>
@@ -233,7 +248,7 @@ export default function ProjectsPage() {
                 title="Sort"
                 className="flex items-center justify-center w-9 h-9 border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
               >
-                <span className="material-icons-outlined" style={{ fontSize: 18 }}>list_arrow</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 18 }}>list_arrow</span>
               </button>
               {showSortMenu && (
                 <>

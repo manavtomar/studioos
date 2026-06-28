@@ -50,8 +50,8 @@ const crmChildren = [
   { href: '/crm/clients', icon: 'people', label: 'Clients' },
 ];
 const librariesChildren = [
-  { href: '/procurement', icon: 'inventory_2', label: 'Products' },
-  { href: '/procurement', icon: 'store', label: 'Vendors' },
+  { href: '/products', icon: 'inventory_2', label: 'Products' },
+  { href: '/vendors', icon: 'store', label: 'Vendors' },
 ];
 const bottomNav = [
   { href: '/tasks', icon: 'task_alt', label: 'Tasks' },
@@ -263,9 +263,6 @@ function AppLayoutInner({ children }: { children: ReactNode }) {
               })}
             </div>
           </div>
-
-          {/* Divider */}
-          <div className="h-px bg-border/50 mx-2 my-1.5" />
 
           {/* Bottom nav */}
           {bottomNav.map((item) => (

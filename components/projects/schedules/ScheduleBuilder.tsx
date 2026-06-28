@@ -345,7 +345,7 @@ export function ScheduleBuilder({ schedule, onChange }: ScheduleBuilderProps) {
             title="Sort"
             className="flex items-center justify-center w-9 h-9 border border-border rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
           >
-            <span className="material-icons-outlined" style={{ fontSize: 18 }}>list_arrow</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 18 }}>list_arrow</span>
           </button>
           {showSortMenu && (
             <>
