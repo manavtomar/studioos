@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface SidePanelProps {
@@ -14,8 +15,10 @@ interface SidePanelProps {
 
 export function SidePanel({ title, subtitle, onClose, children, footer, width = 'min(45vw, 820px)' }: SidePanelProps) {
   const [visible, setVisible] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const t = requestAnimationFrame(() => setVisible(true));
     return () => cancelAnimationFrame(t);
   }, []);
@@ -31,7 +34,9 @@ export function SidePanel({ title, subtitle, onClose, children, footer, width = 
     setTimeout(onClose, 280);
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <>
       {/* Frosted glass overlay — visible page, no text blur */}
       <div
@@ -68,6 +73,7 @@ export function SidePanel({ title, subtitle, onClose, children, footer, width = 
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   );
 }
