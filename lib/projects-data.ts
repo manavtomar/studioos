@@ -70,6 +70,7 @@ export interface Project {
   builder: string | null;
   architect: string | null;
   consultants: { id: string; role: string; name: string }[];
+  designTeam: { id: string; name: string; role: string }[];
   siteNotes: string | null;
   pinned: boolean;
   coverIndex: number;
@@ -107,10 +108,10 @@ export const projectStatusColors: Record<ProjectStatus, string> = {
 };
 
 export const projectStatusBadgeColors: Record<ProjectStatus, string> = {
-  Active: 'bg-blue-50 text-blue-700',
-  'On Hold': 'bg-gray-100 text-gray-600',
-  Completed: 'bg-green-50 text-green-700',
-  Archived: 'bg-slate-100 text-slate-600',
+  Active: 'bg-muted text-foreground',
+  'On Hold': 'bg-muted text-muted-foreground',
+  Completed: 'bg-muted text-muted-foreground',
+  Archived: 'bg-muted text-muted-foreground',
 };
 
 export const coverGradients = [
@@ -155,6 +156,7 @@ export const mockProjects: Project[] = [
     builder: 'Pacific Constructions',
     architect: 'Studio Architecture',
     consultants: [],
+    designTeam: [],
     siteNotes: 'Site access via rear lane. Parking available on street. Council DA approved.',
     pinned: false,
     coverIndex: 0,
@@ -208,6 +210,7 @@ export const mockProjects: Project[] = [
     builder: null,
     architect: null,
     consultants: [],
+    designTeam: [],
     siteNotes: 'Strata approval required for bathroom modifications.',
     pinned: false,
     coverIndex: 1,
@@ -253,6 +256,7 @@ export const mockProjects: Project[] = [
     builder: 'Coastal Builders',
     architect: 'Alexandra Thompson (client)',
     consultants: [],
+    designTeam: [],
     siteNotes: 'Cliffside site requires engineering certification. DA for extension approved.',
     pinned: false,
     coverIndex: 2,
@@ -301,6 +305,7 @@ export const mockProjects: Project[] = [
     builder: 'FitOut Co',
     architect: null,
     consultants: [],
+    designTeam: [],
     siteNotes: 'After-hours access only. Building management requires 48hr notice.',
     pinned: false,
     coverIndex: 3,
@@ -343,6 +348,7 @@ export const mockProjects: Project[] = [
     builder: null,
     architect: 'Heritage Architects',
     consultants: [],
+    designTeam: [],
     siteNotes: 'Heritage constraints on external modifications. Lift access to penthouse level.',
     pinned: false,
     coverIndex: 4,
@@ -383,6 +389,7 @@ export const mockProjects: Project[] = [
     builder: 'Interior FitOuts',
     architect: 'Studio Architecture',
     consultants: [],
+    designTeam: [],
     siteNotes: '24/7 hotel operation. Work scheduled for low-occupancy periods.',
     pinned: false,
     coverIndex: 5,

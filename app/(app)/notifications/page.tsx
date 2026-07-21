@@ -63,9 +63,9 @@ export default function NotificationsPage() {
       <div className="card-base overflow-hidden">
         {filtered.length === 0 ? (
           <div className="text-center py-16">
-            <span className="text-muted-foreground/40 block mb-3">
-              {activeTab === 'unread' ? <MailCheck size={40} /> : <BellOff size={40} />}
-            </span>
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+              {activeTab === 'unread' ? <MailCheck size={28} className="text-muted-foreground" /> : <BellOff size={28} className="text-muted-foreground" />}
+            </div>
             <p className="text-sm text-muted-foreground">
               {activeTab === 'unread' ? 'No unread notifications' : 'No notifications'}
             </p>

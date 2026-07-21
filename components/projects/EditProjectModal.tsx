@@ -31,6 +31,7 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
     builder: project.builder || '',
     architect: project.architect || '',
     consultants: project.consultants || [],
+    designTeam: project.designTeam || [],
     siteNotes: project.siteNotes || '',
   });
 
@@ -53,6 +54,7 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
       builder: form.builder || null,
       architect: form.architect || null,
       consultants: form.consultants,
+      designTeam: form.designTeam,
       siteNotes: form.siteNotes || null,
     });
     onClose();
@@ -130,16 +132,9 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
         <div>
           <SectionLabel>Project Team</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Project Manager">
+            <Field label="Project Designer">
               <DesignerSelect value={form.projectManager} onChange={(v) => set('projectManager', v)} />
             </Field>
-          </div>
-        </div>
-
-        {/* Additional */}
-        <div>
-          <SectionLabel>Additional</SectionLabel>
-          <div className="grid grid-cols-2 gap-3">
             <Field label="Builder">
               <input value={form.builder} onChange={(e) => set('builder', e.target.value)} className="modal-input" />
             </Field>
@@ -147,50 +142,95 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
               <input value={form.architect} onChange={(e) => set('architect', e.target.value)} className="modal-input" />
             </Field>
           </div>
-        </div>
 
-        {/* Consultants */}
-        <div>
-          <SectionLabel>Consultants</SectionLabel>
-          <div className="space-y-2">
-            {form.consultants.map((c) => (
-              <div key={c.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
-                <input
-                  value={c.role}
-                  onChange={(e) => setForm((prev) => ({
-                    ...prev,
-                    consultants: prev.consultants.map((x) => x.id === c.id ? { ...x, role: e.target.value } : x),
-                  }))}
-                  placeholder="Role (e.g. Structural Engineer)"
-                  className="modal-input"
-                />
-                <input
-                  value={c.name}
-                  onChange={(e) => setForm((prev) => ({
-                    ...prev,
-                    consultants: prev.consultants.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x),
-                  }))}
-                  placeholder="Name"
-                  className="modal-input"
-                />
-                <button
-                  onClick={() => setForm((prev) => ({ ...prev, consultants: prev.consultants.filter((x) => x.id !== c.id) }))}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ))}
-            <button
-              onClick={() => setForm((prev) => ({
-                ...prev,
-                consultants: [...prev.consultants, { id: `con-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: '', name: '' }],
-              }))}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Plus size={14} />
-              Add Consultant
-            </button>
+          {/* Design Team */}
+          <div className="mt-4">
+            <p className="text-xs text-muted-foreground mb-2">Design Team</p>
+            <div className="space-y-2">
+              {form.designTeam.map((m) => (
+                <div key={m.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                  <input
+                    value={m.name}
+                    onChange={(e) => setForm((prev) => ({
+                      ...prev,
+                      designTeam: prev.designTeam.map((x) => x.id === m.id ? { ...x, name: e.target.value } : x),
+                    }))}
+                    placeholder="Name"
+                    className="modal-input"
+                  />
+                  <input
+                    value={m.role}
+                    onChange={(e) => setForm((prev) => ({
+                      ...prev,
+                      designTeam: prev.designTeam.map((x) => x.id === m.id ? { ...x, role: e.target.value } : x),
+                    }))}
+                    placeholder="Role (e.g. Interior Designer)"
+                    className="modal-input"
+                  />
+                  <button
+                    onClick={() => setForm((prev) => ({ ...prev, designTeam: prev.designTeam.filter((x) => x.id !== m.id) }))}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setForm((prev) => ({
+                  ...prev,
+                  designTeam: [...prev.designTeam, { id: `dt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, name: '', role: '' }],
+                }))}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Plus size={14} />
+                Add Team Member
+              </button>
+            </div>
+          </div>
+
+          {/* Consultants */}
+          <div className="mt-4">
+            <p className="text-xs text-muted-foreground mb-2">Consultants</p>
+            <div className="space-y-2">
+              {form.consultants.map((c) => (
+                <div key={c.id} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                  <input
+                    value={c.role}
+                    onChange={(e) => setForm((prev) => ({
+                      ...prev,
+                      consultants: prev.consultants.map((x) => x.id === c.id ? { ...x, role: e.target.value } : x),
+                    }))}
+                    placeholder="Role (e.g. Structural Engineer)"
+                    className="modal-input"
+                  />
+                  <input
+                    value={c.name}
+                    onChange={(e) => setForm((prev) => ({
+                      ...prev,
+                      consultants: prev.consultants.map((x) => x.id === c.id ? { ...x, name: e.target.value } : x),
+                    }))}
+                    placeholder="Name"
+                    className="modal-input"
+                  />
+                  <button
+                    onClick={() => setForm((prev) => ({ ...prev, consultants: prev.consultants.filter((x) => x.id !== c.id) }))}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+              <button
+                onClick={() => setForm((prev) => ({
+                  ...prev,
+                  consultants: [...prev.consultants, { id: `con-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, role: '', name: '' }],
+                }))}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Plus size={14} />
+                Add Consultant
+              </button>
+            </div>
           </div>
         </div>
 

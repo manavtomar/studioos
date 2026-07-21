@@ -197,7 +197,11 @@ export default function TasksPage() {
     <>
       {/* Edit panel */}
       {editingTask && (
-        <SidePanel onClose={() => setEditingTask(null)} footer={
+        <SidePanel
+          title="Edit Task"
+          subtitle={editingTask.title}
+          onClose={() => setEditingTask(null)}
+          footer={
           <><div /><div className="flex gap-2">
             <button onClick={() => setEditingTask(null)} className="notion-button border border-border">Cancel</button>
             <button onClick={() => saveEdit(editingTask)} className="btn-primary">Save</button>

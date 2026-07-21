@@ -14,7 +14,7 @@ import { DeleteProjectDialog } from '@/components/projects/DeleteProjectDialog';
 import { ProjectStatusBadge } from '@/components/projects/ProjectStatusBadge';
 import { NewProjectModal, NewProjectData } from '@/components/projects/NewProjectModal';
 import { useActivity } from '@/lib/activity-context';
-import { Search, X, Filter, ArrowUpDown, Check, LayoutGrid, Rows3, ListChecks } from 'lucide-react';
+import { Search, X, Filter, ArrowUpDown, Check, LayoutGrid, Rows3, ListChecks, Plus } from 'lucide-react';
 
 const SORT_OPTIONS = [
   { label: 'Project Name', value: 'name' },
@@ -110,6 +110,7 @@ export default function ProjectsPage() {
       builder: data.builder || null,
       architect: data.architect || null,
       consultants: [],
+      designTeam: [],
       siteNotes: data.siteNotes || null,
       pinned: false,
       coverIndex: Math.floor(Math.random() * 6),
@@ -392,6 +393,7 @@ export default function ProjectsPage() {
                 onClick={() => setShowModal(true)}
                 className="border-2 border-dashed border-border rounded-xl h-56 flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground transition-colors"
               >
+                <Plus size={22} />
                 <span className="text-sm">New Project</span>
               </button>
             )}

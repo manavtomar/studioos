@@ -99,6 +99,7 @@ export default function DashboardPage() {
       builder: data.builder || null,
       architect: data.architect || null,
       consultants: [],
+      designTeam: [],
       siteNotes: data.siteNotes || null,
       pinned: false,
       coverIndex: 0,

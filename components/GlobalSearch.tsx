@@ -100,12 +100,16 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
         {/* Results */}
         {!query.trim() ? (
           <div className="text-center py-12">
-            <Search size={36} className="text-muted-foreground/40 block mx-auto mb-3" />
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+              <Search size={28} className="text-muted-foreground" />
+            </div>
             <p className="text-sm text-muted-foreground">Start typing to search across StudioOS</p>
           </div>
         ) : results.length === 0 ? (
           <div className="text-center py-12">
-            <SearchX size={36} className="text-muted-foreground/40 block mb-3" />
+            <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">
+              <SearchX size={28} className="text-muted-foreground" />
+            </div>
             <p className="text-sm text-muted-foreground">No results for "{query}"</p>
           </div>
         ) : (
