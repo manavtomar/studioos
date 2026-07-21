@@ -28,8 +28,6 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
     startDate: project.startDate,
     targetCompletion: project.targetCompletion,
     projectManager: project.projectManager,
-    builder: project.builder || '',
-    architect: project.architect || '',
     consultants: project.consultants || [],
     designTeam: project.designTeam || [],
     siteNotes: project.siteNotes || '',
@@ -51,8 +49,6 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
       startDate: form.startDate,
       targetCompletion: form.targetCompletion,
       projectManager: form.projectManager,
-      builder: form.builder || null,
-      architect: form.architect || null,
       consultants: form.consultants,
       designTeam: form.designTeam,
       siteNotes: form.siteNotes || null,
@@ -132,14 +128,8 @@ export function EditProjectModal({ project, onClose, onSave }: EditProjectModalP
         <div>
           <SectionLabel>Project Team</SectionLabel>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Project Designer">
+            <Field label="Project Designer" className="col-span-2">
               <DesignerSelect value={form.projectManager} onChange={(v) => set('projectManager', v)} />
-            </Field>
-            <Field label="Builder">
-              <input value={form.builder} onChange={(e) => set('builder', e.target.value)} className="modal-input" />
-            </Field>
-            <Field label="Architect">
-              <input value={form.architect} onChange={(e) => set('architect', e.target.value)} className="modal-input" />
             </Field>
           </div>
 

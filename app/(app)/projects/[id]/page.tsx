@@ -274,27 +274,6 @@ function OverviewTab({
             onPhaseChange={onPhaseChange}
           />
         </div>
-
-        {/* Project Team */}
-        <DetailSection title="Project Team">
-          <div className="space-y-3">
-            {[
-              { name: project.team.projectManager, role: 'Project Manager' },
-              { name: project.team.leadDesigner, role: 'Lead Designer' },
-              { name: project.team.supportDesigner, role: 'Support Designer' },
-            ].map(({ name, role }) => (
-              <div key={role} className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
-                  <User size={15} className="text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{name || 'Unassigned'}</p>
-                  <p className="text-xs text-muted-foreground">{role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </DetailSection>
       </div>
 
       {/* Right Columns */}
@@ -305,19 +284,64 @@ function OverviewTab({
           </DetailSection>
         )}
 
-        {/* Additional Details */}
-        {(project.builder || project.architect || (project.consultants && project.consultants.length > 0) || project.siteNotes) && (
-          <DetailSection title="Additional Details">
-            <div className="space-y-3">
-              {project.builder && <DetailField label="Builder" value={project.builder} />}
-              {project.architect && <DetailField label="Architect" value={project.architect} />}
-              {project.consultants?.map((c) => (
-                <DetailField key={c.id} label={c.role} value={c.name} />
-              ))}
-              {project.siteNotes && <DetailField label="Site Notes" value={project.siteNotes} />}
+        {/* Project Team */}
+        <DetailSection title="Project Team">
+          <div className="space-y-4">
+            {/* Project Designer */}
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                <User size={15} className="text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">{project.projectManager || 'Unassigned'}</p>
+                <p className="text-xs text-muted-foreground">Project Designer</p>
+              </div>
             </div>
-          </DetailSection>
-        )}
+
+            {/* Design Team */}
+            {project.designTeam && project.designTeam.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Design Team</p>
+                <div className="space-y-2">
+                  {project.designTeam.map((m) => (
+                    <div key={m.id} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <User size={15} className="text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{m.name || 'Unassigned'}</p>
+                        <p className="text-xs text-muted-foreground">{m.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Consultants */}
+            {project.consultants && project.consultants.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Consultants</p>
+                <div className="space-y-2">
+                  {project.consultants.map((c) => (
+                    <div key={c.id} className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center flex-shrink-0">
+                        <User size={15} className="text-muted-foreground" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{c.name || 'Unassigned'}</p>
+                        <p className="text-xs text-muted-foreground">{c.role}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Site Notes */}
+            {project.siteNotes && <DetailField label="Site Notes" value={project.siteNotes} />}
+          </div>
+        </DetailSection>
 
         <DetailSection title="Recent Activity">
           {project.timeline.length === 0 ? (

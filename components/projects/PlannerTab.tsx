@@ -4,6 +4,11 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, Filter, Plus, Calendar, X, Check } from 'lucide-react';
 import { Project, PROJECT_PHASES } from '@/lib/projects-data';
 import { Task, TaskStatus } from '@/lib/crm-data';
+import { SidePanel } from '@/components/ui/SidePanel';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
+import { SelectDropdown } from '@/components/projects/SelectDropdown';
+import { format, parse } from 'date-fns';
 
 interface PlannerTabProps {
   project: Project;
@@ -21,8 +26,9 @@ interface TaskCardProps {
   onDragEnter: () => void;
   onDragEnd: () => void;
   isDragging: boolean;
+  onClick: () => void;
 }
-function TaskCard({ task, onDragStart, onDragEnter, onDragEnd, isDragging }: TaskCardProps) {
+function TaskCard({ task, onDragStart, onDragEnter, onDragEnd, isDragging, onClick }: TaskCardProps) {
   return (
     <div
       draggable
@@ -30,6 +36,7 @@ function TaskCard({ task, onDragStart, onDragEnter, onDragEnd, isDragging }: Tas
       onDragEnter={onDragEnter}
       onDragEnd={onDragEnd}
       onDragOver={(e) => e.preventDefault()}
+      onClick={onClick}
       className={`card-base p-3 cursor-grab active:cursor-grabbing group/task transition-opacity hover:ring-1 hover:ring-foreground/15 ${isDragging ? 'opacity-40' : ''}`}
     >
       <p className="text-sm font-medium leading-tight">{task.title}</p>
@@ -52,6 +59,7 @@ export function PlannerTab({ project, onUpdateTasks }: PlannerTabProps) {
   const [addingTask, setAddingTask] = useState<{ status: TaskStatus; title: string } | null>(null);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const filterRef = useRef<HTMLDivElement>(null);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,6 +167,7 @@ export function PlannerTab({ project, onUpdateTasks }: PlannerTabProps) {
                   onDragEnter={() => handleCardDragEnter(task.id)}
                   onDragEnd={handleDragEnd}
                   isDragging={draggedId === task.id}
+                  onClick={() => setEditingTask(task)}
                 />
               ))}
 
@@ -243,6 +252,7 @@ export function PlannerTab({ project, onUpdateTasks }: PlannerTabProps) {
                       onDragEnter={() => handleCardDragEnter(task.id)}
                       onDragEnd={handleDragEnd}
                       onDragOver={(e) => e.preventDefault()}
+                      onClick={() => setEditingTask(task)}
                       className="flex items-center gap-3 px-4 py-3 hover:bg-muted/20 transition-colors cursor-grab active:cursor-grabbing"
                     >
                       <span className="text-xs px-2 py-0.5 rounded-md font-medium flex-shrink-0 bg-muted text-muted-foreground">
@@ -368,6 +378,84 @@ export function PlannerTab({ project, onUpdateTasks }: PlannerTabProps) {
       {/* Content */}
       {view === 'progress' && renderKanban()}
       {view === 'phase' && renderPhaseView()}
+
+      {/* Task Edit Side Panel */}
+      {editingTask && (
+        <SidePanel
+          title="Edit Task"
+          subtitle={editingTask.title}
+          onClose={() => setEditingTask(null)}
+          footer={
+            <><div /><div className="flex gap-2">
+              <button onClick={() => setEditingTask(null)} className="notion-button border border-border">Cancel</button>
+              <button onClick={() => {
+                const updated = tasks.map(t => t.id === editingTask.id ? editingTask : t);
+                onUpdateTasks(updated);
+                setEditingTask(null);
+              }} className="btn-primary">Save</button>
+            </div></>
+          }
+        >
+          <div className="px-6 py-5 space-y-4">
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">Task Name</label>
+              <input
+                value={editingTask.title}
+                onChange={e => setEditingTask(p => p && ({ ...p, title: e.target.value }))}
+                className="modal-input"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">Status</label>
+              <div className="grid grid-cols-2 gap-2">
+                {STATUSES.map(s => (
+                  <button
+                    key={s}
+                    onClick={() => setEditingTask(prev => prev && ({ ...prev, status: s, completed: s === 'Done' }))}
+                    className={`py-2 text-xs rounded-lg border transition-colors ${editingTask.status === s ? 'border-foreground bg-muted font-medium' : 'border-border text-muted-foreground hover:bg-muted/30'}`}
+                  >{s}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">Phase</label>
+              <SelectDropdown
+                value={editingTask.phase || ''}
+                options={PROJECT_PHASES}
+                onChange={(v) => setEditingTask(prev => prev && ({ ...prev, phase: v }))}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">Due Date</label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="modal-input flex items-center justify-between text-left" type="button">
+                    <span>{editingTask.dueDate || 'Select date'}</span>
+                    <Calendar size={16} className="text-muted-foreground" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarPicker
+                    mode="single"
+                    selected={editingTask.dueDate ? parse(editingTask.dueDate, 'd MMM yyyy', new Date()) : undefined}
+                    onSelect={(d) => { if (d) setEditingTask(prev => prev && ({ ...prev, dueDate: format(d, 'd MMM yyyy') })); }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
+              <label className="block text-xs text-muted-foreground mb-1.5">Description</label>
+              <textarea
+                value={editingTask.description || ''}
+                onChange={e => setEditingTask(p => p && ({ ...p, description: e.target.value }))}
+                placeholder="Add task details..."
+                className="modal-input min-h-[80px] resize-none"
+              />
+            </div>
+          </div>
+        </SidePanel>
+      )}
     </div>
   );
 }
