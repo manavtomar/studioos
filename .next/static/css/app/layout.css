@@ -1982,10 +1982,6 @@ html.dark { color-scheme: dark; }
 .bg-accent {
   background-color: hsl(var(--accent));
 }
-.bg-amber-100 {
-  --tw-bg-opacity: 1;
-  background-color: rgb(254 243 199 / var(--tw-bg-opacity));
-}
 .bg-amber-50 {
   --tw-bg-opacity: 1;
   background-color: rgb(255 251 235 / var(--tw-bg-opacity));
@@ -3845,10 +3841,6 @@ html.dark { color-scheme: dark; }
 
 :is(.dark .dark\:bg-amber-900\/20) {
   background-color: rgb(120 53 15 / 0.2);
-}
-
-:is(.dark .dark\:bg-amber-900\/30) {
-  background-color: rgb(120 53 15 / 0.3);
 }
 
 :is(.dark .dark\:bg-blue-900\/10) {
