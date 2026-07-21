@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
@@ -16,12 +16,23 @@ interface SidePanelProps {
 export function SidePanel({ title, subtitle, onClose, children, footer, width = 'min(45vw, 820px)' }: SidePanelProps) {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const visibleRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
-    const t = requestAnimationFrame(() => setVisible(true));
-    return () => cancelAnimationFrame(t);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const r1 = requestAnimationFrame(() => {
+      const r2 = requestAnimationFrame(() => setVisible(true));
+      visibleRef.current = r2;
+    });
+    return () => {
+      cancelAnimationFrame(r1);
+      if (visibleRef.current) cancelAnimationFrame(visibleRef.current);
+    };
+  }, [mounted]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') handleClose(); };
