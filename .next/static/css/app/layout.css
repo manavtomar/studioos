@@ -547,10 +547,17 @@ video {
 .container {
   width: 100%;
 }
+.\!container {
+  width: 100% !important;
+}
 @media (min-width: 640px) {
 
   .container {
     max-width: 640px;
+  }
+
+  .\!container {
+    max-width: 640px !important;
   }
 }
 @media (min-width: 768px) {
@@ -558,11 +565,19 @@ video {
   .container {
     max-width: 768px;
   }
+
+  .\!container {
+    max-width: 768px !important;
+  }
 }
 @media (min-width: 1024px) {
 
   .container {
     max-width: 1024px;
+  }
+
+  .\!container {
+    max-width: 1024px !important;
   }
 }
 @media (min-width: 1280px) {
@@ -570,11 +585,19 @@ video {
   .container {
     max-width: 1280px;
   }
+
+  .\!container {
+    max-width: 1280px !important;
+  }
 }
 @media (min-width: 1536px) {
 
   .container {
     max-width: 1536px;
+  }
+
+  .\!container {
+    max-width: 1536px !important;
   }
 }
 /* ── Sidebar ── */
@@ -1026,6 +1049,18 @@ html.dark { color-scheme: dark; }
 .top-full {
   top: 100%;
 }
+.-left-3 {
+  left: -0.75rem;
+}
+.-left-\[3px\] {
+  left: -3px;
+}
+.-top-0 {
+  top: -0px;
+}
+.-top-0\.5 {
+  top: -0.125rem;
+}
 .z-10 {
   z-index: 10;
 }
@@ -1464,6 +1499,9 @@ html.dark { color-scheme: dark; }
 }
 .w-px {
   width: 1px;
+}
+.w-\[7px\] {
+  width: 7px;
 }
 .min-w-0 {
   min-width: 0px;
@@ -1966,6 +2004,9 @@ html.dark { color-scheme: dark; }
 .border-transparent {
   border-color: transparent;
 }
+.border-border\/25 {
+  border-color: hsl(var(--border) / 0.25);
+}
 .border-l-transparent {
   border-left-color: transparent;
 }
@@ -2120,6 +2161,18 @@ html.dark { color-scheme: dark; }
 .bg-white {
   --tw-bg-opacity: 1;
   background-color: rgb(255 255 255 / var(--tw-bg-opacity));
+}
+.bg-foreground\/70 {
+  background-color: hsl(var(--foreground) / 0.7);
+}
+.bg-foreground\/\[0\.04\] {
+  background-color: hsl(var(--foreground) / 0.04);
+}
+.bg-muted\/25 {
+  background-color: hsl(var(--muted) / 0.25);
+}
+.bg-muted\/\[0\.06\] {
+  background-color: hsl(var(--muted) / 0.06);
 }
 .bg-gradient-to-br {
   background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
@@ -2316,6 +2369,10 @@ html.dark { color-scheme: dark; }
   padding-top: 2rem;
   padding-bottom: 2rem;
 }
+.py-px {
+  padding-top: 1px;
+  padding-bottom: 1px;
+}
 .pb-1 {
   padding-bottom: 0.25rem;
 }
@@ -2498,6 +2555,9 @@ html.dark { color-scheme: dark; }
 .tracking-widest {
   letter-spacing: 0.1em;
 }
+.tracking-tighter {
+  letter-spacing: -0.05em;
+}
 .text-accent-foreground {
   color: hsl(var(--accent-foreground));
 }
@@ -2626,6 +2686,9 @@ html.dark { color-scheme: dark; }
   --tw-text-opacity: 1;
   color: rgb(255 255 255 / var(--tw-text-opacity));
 }
+.text-foreground\/75 {
+  color: hsl(var(--foreground) / 0.75);
+}
 .underline {
   text-decoration-line: underline;
 }
@@ -2658,6 +2721,9 @@ html.dark { color-scheme: dark; }
 }
 .opacity-90 {
   opacity: 0.9;
+}
+.opacity-30 {
+  opacity: 0.3;
 }
 .shadow-2xl {
   --tw-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
@@ -3175,6 +3241,10 @@ html.dark { color-scheme: dark; }
   --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
   --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
   box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.hover\:ring-foreground\/20:hover {
+  --tw-ring-color: hsl(var(--foreground) / 0.2);
 }
 
 .focus\:border-border\/60:focus {
@@ -3945,6 +4015,10 @@ html.dark { color-scheme: dark; }
 
   .sm\:mt-0 {
     margin-top: 0px;
+  }
+
+  .sm\:block {
+    display: block;
   }
 
   .sm\:max-w-sm {
