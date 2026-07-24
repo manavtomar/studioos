@@ -4,8 +4,9 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Ellipsis as MoreHorizontal, Eye, FileDown, Trash2, Receipt, TrendingUp, FileText, CircleAlert as AlertCircle, Printer, Pencil, ChevronDown, Check } from 'lucide-react';
 import { Project, Invoice, InvoiceLineItem, formatBudget } from '@/lib/projects-data';
-import { SidePanel } from '@/components/ui/SidePanel';
 import { DatePicker } from '@/components/ui/DatePicker';
+import { InvoiceEditorLayout } from '@/components/projects/InvoiceEditorLayout';
+import { InvoicePreview, InvoicePreviewData, invoiceToPreviewData } from '@/components/projects/InvoicePreview';
 
 interface FinanceTabProps {
   project: Project;
@@ -90,6 +91,29 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + lineAmount(l), 0), [lines]);
 
+  // Live preview data — derived from current form state, not a second model.
+  const previewData: InvoicePreviewData = useMemo(() => ({
+    number: invoiceNumber,
+    clientName,
+    clientAddress,
+    companyName,
+    companyAddress,
+    companySuburb,
+    abn,
+    accountHolder,
+    bsb,
+    accountNo,
+    bankName,
+    bicSwift,
+    referenceDesc,
+    issuedDate: invoiceDate ? new Date(invoiceDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
+    dueDate: dueOnReceipt ? 'Upon Receipt' : (dueDate ? new Date(dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''),
+    status,
+    lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
+    notes,
+    amount: subtotal,
+  }), [invoiceNumber, clientName, clientAddress, companyName, companyAddress, companySuburb, abn, accountHolder, bsb, accountNo, bankName, bicSwift, referenceDesc, invoiceDate, dueOnReceipt, dueDate, status, lines, notes, subtotal]);
+
   const addLine = () => setLines(prev => [...prev, emptyLine()]);
   const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
   const updateLine = (id: string, field: keyof LineItem, value: string) =>
@@ -125,10 +149,11 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
   };
 
   return (
-    <SidePanel
+    <InvoiceEditorLayout
+      title="New Invoice"
       subtitle={project.name}
+      previewData={previewData}
       onClose={onClose}
-      width="min(52vw, 780px)"
       footer={
         <>
           <div />
@@ -300,7 +325,7 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
           </div>
         </div>
       </div>
-    </SidePanel>
+    </InvoiceEditorLayout>
   );
 }
 
@@ -314,24 +339,17 @@ function InvoicePreviewModal({ invoice, onClose }: InvoicePreviewModalProps) {
     window.print();
   }, []);
 
-  const lineItems = invoice.lineItems && invoice.lineItems.length > 0
-    ? invoice.lineItems
-    : [{ id: 'default', description: invoice.referenceDesc || 'Design services', hours: '', rate: '' }];
-
-  const subtotal = lineItems.reduce((s, l) => s + (parseFloat(l.hours) || 0) * (parseFloat(l.rate) || 0), 0);
-  const total = subtotal || invoice.amount;
-
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 md:p-8">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
       {/* Frosted glass overlay */}
       <div
-        className="absolute inset-0 transition-opacity"
+        className="absolute inset-0 transition-opacity print:hidden"
         style={{ background: 'rgba(220,218,212,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
         onClick={onClose}
       />
 
       {/* Modal container */}
-      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col bg-card rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col bg-card rounded-2xl shadow-2xl overflow-hidden print:max-w-none print:max-h-none print:rounded-none print:shadow-none print:static print:w-full">
         {/* Toolbar */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0 print:hidden">
           <div>
@@ -349,134 +367,7 @@ function InvoicePreviewModal({ invoice, onClose }: InvoicePreviewModalProps) {
 
         {/* Invoice document (scrollable, print target) */}
         <div className="flex-1 overflow-y-auto modal-scroll print:overflow-visible print:max-h-none">
-          <div className="invoice-document mx-auto" style={{ maxWidth: '800px' }}>
-            {/* Cream background page */}
-            <div className="bg-[#FAF8F2] px-8 md:px-12 py-10 md:py-12 print:bg-[#FAF8F2] print:px-12 print:py-12">
-              {/* Header: logo left, "Invoice" heading right */}
-              <div className="flex items-start justify-between mb-10">
-                <div className="flex items-center gap-2.5">
-                  <img src="/logo.png" alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
-                  <div>
-                    <p className="text-sm font-semibold text-foreground leading-tight">{invoice.companyName || 'ergonome studio'}</p>
-                    {(invoice.abn) && <p className="text-[10px] text-muted-foreground">ABN: {invoice.abn}</p>}
-                  </div>
-                </div>
-                <h1 className="text-3xl font-semibold text-foreground tracking-tight">Invoice</h1>
-              </div>
-
-              {/* 2-column info grid */}
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                {/* Left column: Bill To + Invoice details */}
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Bill To</p>
-                    <p className="text-sm font-medium text-foreground leading-snug">{invoice.clientName}</p>
-                    {invoice.clientAddress && (
-                      <p className="text-xs text-muted-foreground whitespace-pre-line leading-relaxed mt-0.5">{invoice.clientAddress}</p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Invoice Number</p>
-                      <p className="text-sm text-foreground">{invoice.number}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Invoice Date</p>
-                      <p className="text-sm text-foreground">{invoice.issuedDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Due Date</p>
-                      <p className="text-sm text-foreground">{invoice.dueDate}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Reference</p>
-                      <p className="text-sm text-foreground">{invoice.referenceDesc || '—'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right column: Company info + Payment details */}
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">From</p>
-                    <p className="text-sm font-medium text-foreground leading-snug">{invoice.companyName || 'ergonome studio'}</p>
-                    {invoice.companyAddress && <p className="text-xs text-muted-foreground leading-relaxed">{invoice.companyAddress}</p>}
-                    {invoice.companySuburb && <p className="text-xs text-muted-foreground leading-relaxed">{invoice.companySuburb}</p>}
-                    {invoice.abn && <p className="text-xs text-muted-foreground leading-relaxed mt-0.5">ABN: {invoice.abn}</p>}
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Payment Details</p>
-                    {invoice.accountHolder && <p className="text-xs text-muted-foreground leading-relaxed">Account Holder: {invoice.accountHolder}</p>}
-                    {invoice.bankName && <p className="text-xs text-muted-foreground leading-relaxed">Bank: {invoice.bankName}</p>}
-                    <div className="flex gap-4">
-                      {invoice.bsb && <p className="text-xs text-muted-foreground leading-relaxed">BSB: {invoice.bsb}</p>}
-                      {invoice.accountNo && <p className="text-xs text-muted-foreground leading-relaxed">Account: {invoice.accountNo}</p>}
-                    </div>
-                    {invoice.bicSwift && <p className="text-xs text-muted-foreground leading-relaxed">BIC/SWIFT: {invoice.bicSwift}</p>}
-                  </div>
-                </div>
-              </div>
-
-              {/* Line items table */}
-              <div className="mb-8">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b-2 border-foreground/20">
-                      <th className="text-left text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5">Description</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5 w-20">Hours</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5 w-24">Rate AUD</th>
-                      <th className="text-right text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-2.5 w-24">Amount AUD</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lineItems.map((line, idx) => {
-                      const amt = (parseFloat(line.hours) || 0) * (parseFloat(line.rate) || 0);
-                      return (
-                        <tr key={line.id} className={idx < lineItems.length - 1 ? 'border-b border-foreground/10' : ''}>
-                          <td className="py-3 text-sm text-foreground">{line.description || '—'}</td>
-                          <td className="py-3 text-sm text-right text-muted-foreground">{line.hours || '—'}</td>
-                          <td className="py-3 text-sm text-right text-muted-foreground">{line.rate ? `$${line.rate}` : '—'}</td>
-                          <td className="py-3 text-sm text-right font-medium text-foreground">${amt.toFixed(2)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Totals — right aligned */}
-              <div className="flex justify-end mb-8">
-                <div className="w-64 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="text-foreground">${subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Tax (GST)</span>
-                    <span className="text-foreground">$0.00</span>
-                  </div>
-                  <div className="flex justify-between text-base font-semibold border-t-2 border-foreground/20 pt-2">
-                    <span>TOTAL AUD</span>
-                    <span>${total.toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="border-t border-foreground/15 pt-5">
-                {invoice.notes && (
-                  <div className="mb-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Notes</p>
-                    <p className="text-xs text-muted-foreground leading-relaxed">{invoice.notes}</p>
-                  </div>
-                )}
-                <p className="text-[10px] text-muted-foreground text-center leading-relaxed">
-                  Thank you for your business. Payment is due {invoice.dueDate || 'upon receipt'}.<br />
-                  Please include invoice number {invoice.number} in payment reference.
-                </p>
-              </div>
-            </div>
-          </div>
+          <InvoicePreview data={invoiceToPreviewData(invoice)} />
         </div>
       </div>
     </div>
@@ -513,6 +404,22 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
+  // Live preview data — derived from current form state, not a second model.
+  const previewData: InvoicePreviewData = useMemo(() => ({
+    number,
+    clientName,
+    clientAddress,
+    companyName,
+    companyAddress,
+    abn,
+    referenceDesc,
+    issuedDate,
+    dueDate,
+    status,
+    notes,
+    amount: parseFloat(amount) || 0,
+  }), [number, clientName, clientAddress, companyName, companyAddress, abn, referenceDesc, issuedDate, dueDate, status, notes, amount]);
+
   const handleSave = () => {
     onSave({
       ...invoice,
@@ -532,10 +439,11 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
   };
 
   return (
-    <SidePanel
+    <InvoiceEditorLayout
+      title="Edit Invoice"
       subtitle={invoice.number}
+      previewData={previewData}
       onClose={onClose}
-      width="min(45vw, 640px)"
       footer={
         <>
           <div />
@@ -629,7 +537,7 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
           <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={3} className="modal-input resize-none" />
         </div>
       </div>
-    </SidePanel>
+    </InvoiceEditorLayout>
   );
 }
 

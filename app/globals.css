@@ -255,16 +255,41 @@
 
 @media print {
   body * { visibility: hidden !important; }
+
+  /* Legacy invoice document (used by standalone preview modal) */
   .invoice-document, .invoice-document * { visibility: visible !important; }
   .invoice-document {
     position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    left: 0 !important; top: 0 !important;
+    width: 100% !important; max-width: none !important;
+    margin: 0 !important; padding: 0 !important;
   }
+
+  /* New A4 page preview (InvoiceEditorLayout + InvoicePreview) */
+  .invoice-page-shell, .invoice-page-shell * { visibility: visible !important; }
+  .invoice-page-shell {
+    position: absolute !important;
+    left: 0 !important; top: 0 !important;
+    width: 210mm !important; height: 297mm !important;
+    margin: 0 !important; padding: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-after: page;
+    overflow: hidden !important;
+  }
+  .invoice-page-shell:last-child { break-after: auto; }
+  /* Un-scale the page for print — render at true A4 size */
+  .invoice-page-shell > div {
+    transform: none !important;
+    width: 210mm !important; height: 297mm !important;
+  }
+  .invoice-page-bg {
+    padding: 18mm 16mm !important;
+    min-height: 297mm !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
   .print\:hidden { display: none !important; }
   @page { margin: 0; size: A4; }
 }
