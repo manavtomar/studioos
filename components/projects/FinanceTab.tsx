@@ -75,17 +75,15 @@ function StatusDropdown({ value, onChange }: { value: Invoice['status']; onChang
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="notion-button border border-border w-full justify-between text-sm"
+        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
       >
-        <span className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeColors[value] || 'bg-muted text-muted-foreground'}`}>{value}</span>
-        </span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeColors[value] || 'bg-muted text-muted-foreground'}`}>{value}</span>
         <ChevronDown size={14} className="text-muted-foreground" />
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+          <div className="absolute right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden min-w-32">
             {(['Draft', 'Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
               <button
                 key={s}
@@ -165,7 +163,7 @@ function InvoiceFormFields(props: InvoiceFormFieldsProps) {
   } = props;
 
   const addLine = () => setLines(prev => [...prev, emptyLine()]);
-  const addPageBreak = () => setLines(prev => [...prev, { ...emptyLine(), isPageBreak: true, description: '— Page Break —' }]);
+  const addPageBreak = () => setLines(prev => [...prev, { ...emptyLine(), isPageBreak: true, description: 'Page Break' }]);
   const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
   const updateLine = (id: string, field: keyof LineItem, value: string) =>
     setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
@@ -247,27 +245,40 @@ function InvoiceFormFields(props: InvoiceFormFieldsProps) {
               </tr>
             </thead>
             <tbody>
-              {lines.map(line => (
-                <tr key={line.id} className="border-b border-border/40 last:border-b-0">
-                  <td className="px-3 py-2">
-                    <input value={line.description} onChange={e => updateLine(line.id, 'description', e.target.value)} placeholder="Description" className="w-full text-sm outline-none bg-transparent" />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" value={line.hours} onChange={e => updateLine(line.id, 'hours', e.target.value)} placeholder="0.00" className="w-full text-sm text-right outline-none bg-transparent" />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input type="number" value={line.rate} onChange={e => updateLine(line.id, 'rate', e.target.value)} placeholder="$" className="w-full text-sm text-right outline-none bg-transparent" />
-                  </td>
-                  <td className="px-3 py-2 text-right text-sm">${lineAmount(line).toFixed(2)}</td>
-                  <td className="px-2 py-2">
-                    {lines.length > 1 && (
+              {lines.map(line =>
+                line.isPageBreak ? (
+                  <tr key={line.id} className="border-b border-border/40 last:border-b-0 bg-muted/20">
+                    <td colSpan={4} className="px-3 py-2.5 text-center">
+                      <span className="text-xs text-muted-foreground font-medium tracking-wide">Page Break</span>
+                    </td>
+                    <td className="px-2 py-2.5">
                       <button onClick={() => removeLine(line.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
                         <Trash2 size={13} />
                       </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={line.id} className="border-b border-border/40 last:border-b-0">
+                    <td className="px-3 py-2">
+                      <input value={line.description} onChange={e => updateLine(line.id, 'description', e.target.value)} placeholder="Description" className="w-full text-sm outline-none bg-transparent" />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input type="number" value={line.hours} onChange={e => updateLine(line.id, 'hours', e.target.value)} placeholder="0.00" className="w-full text-sm text-right outline-none bg-transparent" />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input type="number" value={line.rate} onChange={e => updateLine(line.id, 'rate', e.target.value)} placeholder="$" className="w-full text-sm text-right outline-none bg-transparent" />
+                    </td>
+                    <td className="px-3 py-2 text-right text-sm">${lineAmount(line).toFixed(2)}</td>
+                    <td className="px-2 py-2">
+                      {lines.length > 1 && (
+                        <button onClick={() => removeLine(line.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
           <div className="px-3 py-2 border-t border-border/40 flex items-center gap-4">
@@ -403,15 +414,14 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
 
   return (
     <>
-      <FloatingPreviewModal data={previewData} onClose={onClose} />
+      <FloatingPreviewModal data={previewData} onClose={onClose} anchorToLeft />
       <SidePanel
         title="New Invoice"
         subtitle={project.name}
         onClose={onClose}
         width="min(42vw, 640px)"
         headerExtra={
-          <div className="flex flex-col gap-1.5 pt-0.5">
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+          <div className="ml-auto pt-0.5">
             <StatusDropdown value={status} onChange={setStatus} />
           </div>
         }
@@ -520,7 +530,7 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
   const [status, setStatus] = useState<Invoice['status']>(invoice.status);
   const [lines, setLines] = useState<LineItem[]>(
     invoice.lineItems && invoice.lineItems.length > 0
-      ? invoice.lineItems.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate }))
+      ? invoice.lineItems.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate, isPageBreak: l.isPageBreak }))
       : [emptyLine()]
   );
   const [notes, setNotes] = useState(invoice.notes || '');
@@ -569,22 +579,21 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
       bankName,
       bicSwift,
       referenceDesc,
-      lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
+      lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate, isPageBreak: l.isPageBreak })),
       notes,
     });
   };
 
   return (
     <>
-      <FloatingPreviewModal data={previewData} onClose={onClose} />
+      <FloatingPreviewModal data={previewData} onClose={onClose} anchorToLeft />
       <SidePanel
         title="Edit Invoice"
         subtitle={invoice.number}
         onClose={onClose}
         width="min(42vw, 640px)"
         headerExtra={
-          <div className="flex flex-col gap-1.5 pt-0.5">
-            <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+          <div className="ml-auto pt-0.5">
             <StatusDropdown value={status} onChange={setStatus} />
           </div>
         }

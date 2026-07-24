@@ -8,9 +8,11 @@ import { InvoicePreview, InvoicePreviewData } from '@/components/projects/Invoic
 export interface FloatingPreviewModalProps {
   data: InvoicePreviewData;
   onClose: () => void;
+  /** When true, the modal is offset to the left of a right-anchored side panel. */
+  anchorToLeft?: boolean;
 }
 
-export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProps) {
+export function FloatingPreviewModal({ data, onClose, anchorToLeft = true }: FloatingPreviewModalProps) {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const visibleRef = useRef<number | null>(null);
@@ -19,12 +21,13 @@ export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProp
 
   useEffect(() => {
     if (!mounted) return;
-    const r1 = requestAnimationFrame(() => {
-      const r2 = requestAnimationFrame(() => setVisible(true));
-      visibleRef.current = r2;
-    });
+    // Delay the modal's entrance so the side panel slides in first.
+    const t = setTimeout(() => {
+      const r = requestAnimationFrame(() => setVisible(true));
+      visibleRef.current = r;
+    }, 180);
     return () => {
-      cancelAnimationFrame(r1);
+      clearTimeout(t);
       if (visibleRef.current) cancelAnimationFrame(visibleRef.current);
     };
   }, [mounted]);
@@ -42,18 +45,25 @@ export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProp
 
   if (!mounted) return null;
 
+  const modalWidth = 560;
+  const gap = 24;
+
   return createPortal(
     <div
-      className={`fixed z-50 transition-all duration-280 print:hidden ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+      className={`fixed top-0 bottom-0 z-50 transition-all duration-300 ease-out print:hidden ${visible ? 'opacity-100' : 'opacity-0'}`}
       style={{
-        top: '50%',
-        left: '50%',
-        transform: visible ? 'translate(-50%, -50%)' : 'translate(-50%, -50%) scale(0.95)',
+        right: visible
+          ? (anchorToLeft ? `calc(min(42vw, 640px) + ${gap}px)` : '24px')
+          : '-600px',
+        width: modalWidth,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
       }}
     >
       <div
         className="bg-card rounded-2xl shadow-2xl border border-border overflow-hidden flex flex-col"
-        style={{ width: 'min(42vw, 560px)', height: 'min(82vh, 760px)' }}
+        style={{ width: modalWidth, height: 'min(82vh, 760px)' }}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border flex-shrink-0">

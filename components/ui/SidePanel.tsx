@@ -63,14 +63,12 @@ export function SidePanel({ title, subtitle, onClose, children, footer, width = 
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 pt-4 pb-3 border-b border-border flex-shrink-0">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className="min-w-0 pt-1">
-              {title && <h2 className="font-semibold text-base">{title}</h2>}
-              {subtitle && <p className={`text-xs text-muted-foreground ${title ? 'mt-0.5' : 'mt-0'}`}>{subtitle}</p>}
-            </div>
-            {headerExtra}
+        <div className="flex items-start justify-between gap-3 px-6 pt-4 pb-3 border-b border-border flex-shrink-0">
+          <div className="min-w-0 pt-0.5">
+            {title && <h2 className="font-semibold text-base leading-none">{title}</h2>}
+            {subtitle && <p className={`text-xs text-muted-foreground ${title ? 'mt-1' : 'mt-0'}`}>{subtitle}</p>}
           </div>
+          {headerExtra}
           <button onClick={handleClose} className="p-1.5 hover:bg-muted rounded-lg transition-colors -mt-0.5 flex-shrink-0">
             <X size={18} className="text-muted-foreground" />
           </button>
