@@ -28,6 +28,7 @@ export interface InvoiceLineItem {
   description: string;
   hours: string;
   rate: string;
+  isPageBreak?: boolean;
 }
 
 export interface Invoice {
@@ -38,7 +39,7 @@ export interface Invoice {
   amount: number;
   issuedDate: string;
   dueDate: string;
-  status: 'Paid' | 'Unpaid' | 'Overdue' | 'Issued';
+  status: 'Paid' | 'Unpaid' | 'Overdue' | 'Issued' | 'Draft';
   companyName?: string;
   companyAddress?: string;
   companySuburb?: string;

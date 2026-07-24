@@ -40,7 +40,7 @@ export interface InvoicePreviewData {
   issuedDate: string;
   dueDate: string;
   status?: string;
-  lineItems?: { id: string; description: string; hours: string; rate: string }[];
+  lineItems?: { id: string; description: string; hours: string; rate: string; isPageBreak?: boolean }[];
   notes?: string;
   amount?: number;
 }
@@ -139,7 +139,7 @@ const InvoiceDetails = memo(function InvoiceDetails({ data }: { data: InvoicePre
 });
 
 interface InvoiceTableProps {
-  lines: { id: string; description: string; hours: string; rate: string }[];
+  lines: { id: string; description: string; hours: string; rate: string; isPageBreak?: boolean }[];
   showTotals: boolean;
   totals: { subtotal: number; total: number };
 }
@@ -157,13 +157,13 @@ const InvoiceTable = memo(function InvoiceTable({ lines, showTotals, totals }: I
             </tr>
           </thead>
           <tbody>
-            {lines.map((line, idx) => {
+            {lines.filter(l => !l.isPageBreak).map((line, idx, visible) => {
               const amt = lineAmount(line.hours, line.rate);
               return (
-                <tr key={line.id} className={idx < lines.length - 1 ? 'border-b border-foreground/10' : ''}>
+                <tr key={line.id} className={idx < visible.length - 1 ? 'border-b border-foreground/10' : ''}>
                   <td className="py-3 text-sm text-foreground">{line.description || '—'}</td>
                   <td className="py-3 text-sm text-right text-muted-foreground">{line.hours || '—'}</td>
-                  <td className="py-3 text-sm text-right text-muted-foreground">{line.rate ? `$${line.rate}` : '—'}</td>
+                  <td className="py-3 text-sm text-right text-muted-foreground">{line.rate ? `${line.rate}` : '—'}</td>
                   <td className="py-3 text-sm text-right font-medium text-foreground">{fmtMoney(amt)}</td>
                 </tr>
               );
@@ -218,7 +218,7 @@ const InvoiceFooter = memo(function InvoiceFooter({ data }: { data: InvoicePrevi
 // ── Single A4 page ───────────────────────────────────────────────────────────
 interface InvoicePageProps {
   data: InvoicePreviewData;
-  lines: { id: string; description: string; hours: string; rate: string }[];
+  lines: { id: string; description: string; hours: string; rate: string; isPageBreak?: boolean }[];
   pageIdx: number;
   totalPages: number;
   totals: { subtotal: number; total: number };
@@ -263,7 +263,7 @@ export const InvoicePreview = memo(function InvoicePreview({ data, showToolbar, 
     onExportPDF?.();
   }, [onExportPDF]);
 
-  // Paginate line items into A4 pages.
+  // Paginate line items into A4 pages, respecting manual page breaks.
   const { pages, totals } = useMemo(() => {
     const raw = data.lineItems && data.lineItems.length > 0
       ? data.lineItems
@@ -272,10 +272,22 @@ export const InvoicePreview = memo(function InvoicePreview({ data, showToolbar, 
     const subtotal = raw.reduce((s, l) => s + lineAmount(l.hours, l.rate), 0);
     const total = subtotal || (data.amount ?? 0);
 
+    // Split into pages: auto-paginate at MAX_LINES_PER_PAGE, and force a new
+    // page whenever a line item with isPageBreak=true is encountered.
     const pages: typeof raw[] = [];
-    for (let i = 0; i < raw.length; i += MAX_LINES_PER_PAGE) {
-      pages.push(raw.slice(i, i + MAX_LINES_PER_PAGE));
+    let current: typeof raw = [];
+    for (const line of raw) {
+      if (line.isPageBreak && current.length > 0) {
+        pages.push(current);
+        current = [];
+      }
+      current.push(line);
+      if (current.length >= MAX_LINES_PER_PAGE) {
+        pages.push(current);
+        current = [];
+      }
     }
+    if (current.length > 0) pages.push(current);
     if (pages.length === 0) pages.push([]);
     return { pages, totals: { subtotal, total } };
   }, [data.lineItems, data.referenceDesc, data.amount]);

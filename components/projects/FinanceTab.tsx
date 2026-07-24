@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Plus, Ellipsis as MoreHorizontal, Eye, FileDown, Trash2, Receipt, TrendingUp, FileText, CircleAlert as AlertCircle, Printer, Pencil, ChevronDown, Check } from 'lucide-react';
+import { Search, Plus, Ellipsis as MoreHorizontal, Eye, FileDown, Trash2, Receipt, TrendingUp, FileText, CircleAlert as AlertCircle, Printer, Pencil, ChevronDown, Check, SeparatorHorizontal } from 'lucide-react';
 import { Project, Invoice, InvoiceLineItem, formatBudget } from '@/lib/projects-data';
 import { SidePanel } from '@/components/ui/SidePanel';
 import { DatePicker } from '@/components/ui/DatePicker';
@@ -14,17 +14,18 @@ interface FinanceTabProps {
   onUpdateInvoices?: (invoices: Invoice[]) => void;
 }
 
-type InvoiceFilter = 'Paid' | 'Unpaid' | 'Overdue' | 'Issued';
-const invoiceFilters: InvoiceFilter[] = ['Paid', 'Unpaid', 'Overdue', 'Issued'];
+type InvoiceFilter = 'Paid' | 'Unpaid' | 'Overdue' | 'Issued' | 'Draft';
+const invoiceFilters: InvoiceFilter[] = ['Paid', 'Unpaid', 'Overdue', 'Issued', 'Draft'];
 
 const statusBadgeColors: Record<string, string> = {
   Paid: 'bg-green-50 text-green-700 border border-green-200',
   Unpaid: 'bg-amber-50 text-amber-700 border border-amber-200',
   Overdue: 'bg-red-50 text-red-700 border border-red-200',
   Issued: 'bg-blue-50 text-blue-700 border border-blue-200',
+  Draft: 'bg-gray-100 text-gray-600 border border-gray-200',
 };
 
-interface LineItem { id: string; description: string; hours: string; rate: string; }
+interface LineItem { id: string; description: string; hours: string; rate: string; isPageBreak?: boolean; }
 
 function emptyLine(): LineItem { return { id: `li-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: '', hours: '', rate: '' }; }
 function toISODate(d: Date): string { return d.toISOString().slice(0, 10); }
@@ -85,7 +86,7 @@ function StatusDropdown({ value, onChange }: { value: Invoice['status']; onChang
         <>
           <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
           <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-            {(['Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
+            {(['Draft', 'Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
               <button
                 key={s}
                 onClick={() => { onChange(s); setOpen(false); }}
@@ -164,6 +165,7 @@ function InvoiceFormFields(props: InvoiceFormFieldsProps) {
   } = props;
 
   const addLine = () => setLines(prev => [...prev, emptyLine()]);
+  const addPageBreak = () => setLines(prev => [...prev, { ...emptyLine(), isPageBreak: true, description: '— Page Break —' }]);
   const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
   const updateLine = (id: string, field: keyof LineItem, value: string) =>
     setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
@@ -268,10 +270,14 @@ function InvoiceFormFields(props: InvoiceFormFieldsProps) {
               ))}
             </tbody>
           </table>
-          <div className="px-3 py-2 border-t border-border/40">
+          <div className="px-3 py-2 border-t border-border/40 flex items-center gap-4">
             <button onClick={addLine} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
               <Plus size={13} />
               Add line item
+            </button>
+            <button onClick={addPageBreak} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <SeparatorHorizontal size={13} />
+              Add page break
             </button>
           </div>
         </div>
@@ -290,15 +296,9 @@ function InvoiceFormFields(props: InvoiceFormFieldsProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">Status</label>
-          <StatusDropdown value={status} onChange={setStatus} />
-        </div>
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">Notes</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={2} className="modal-input resize-none" />
-        </div>
+      <div>
+        <label className="block text-xs font-semibold text-foreground mb-1.5">Notes</label>
+        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={3} className="modal-input resize-none" />
       </div>
     </div>
   );
@@ -330,7 +330,7 @@ function buildPreviewData(p: {
     issuedDate: p.invoiceDate ? fmtDate(p.invoiceDate) : '',
     dueDate: p.dueOnReceipt ? 'Upon Receipt' : (p.dueDate ? fmtDate(p.dueDate) : ''),
     status: p.status,
-    lineItems: p.lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
+    lineItems: p.lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate, isPageBreak: l.isPageBreak })),
     notes: p.notes,
     amount: p.subtotal,
   };
@@ -395,7 +395,7 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
       bankName,
       bicSwift,
       referenceDesc,
-      lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
+      lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate, isPageBreak: l.isPageBreak })),
       notes,
     };
     onSave(inv);
@@ -409,6 +409,12 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
         subtitle={project.name}
         onClose={onClose}
         width="min(42vw, 640px)"
+        headerExtra={
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+            <StatusDropdown value={status} onChange={setStatus} />
+          </div>
+        }
         footer={
           <>
             <div />
@@ -576,6 +582,12 @@ function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
         subtitle={invoice.number}
         onClose={onClose}
         width="min(42vw, 640px)"
+        headerExtra={
+          <div className="flex flex-col gap-1.5 pt-0.5">
+            <label className="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Status</label>
+            <StatusDropdown value={status} onChange={setStatus} />
+          </div>
+        }
         footer={
           <>
             <div />

@@ -11,9 +11,10 @@ interface SidePanelProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   width?: string;
+  headerExtra?: React.ReactNode;
 }
 
-export function SidePanel({ title, subtitle, onClose, children, footer, width = 'min(45vw, 820px)' }: SidePanelProps) {
+export function SidePanel({ title, subtitle, onClose, children, footer, width = 'min(45vw, 820px)', headerExtra }: SidePanelProps) {
   const [visible, setVisible] = useState(false);
   const [mounted, setMounted] = useState(false);
   const visibleRef = useRef<number | null>(null);
@@ -63,11 +64,14 @@ export function SidePanel({ title, subtitle, onClose, children, footer, width = 
       >
         {/* Header */}
         <div className="flex items-start justify-between px-6 pt-4 pb-3 border-b border-border flex-shrink-0">
-          <div className="min-w-0 pt-1">
-            {title && <h2 className="font-semibold text-base">{title}</h2>}
-            {subtitle && <p className={`text-xs text-muted-foreground ${title ? 'mt-0.5' : 'mt-0'}`}>{subtitle}</p>}
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="min-w-0 pt-1">
+              {title && <h2 className="font-semibold text-base">{title}</h2>}
+              {subtitle && <p className={`text-xs text-muted-foreground ${title ? 'mt-0.5' : 'mt-0'}`}>{subtitle}</p>}
+            </div>
+            {headerExtra}
           </div>
-          <button onClick={handleClose} className="p-1.5 hover:bg-muted rounded-lg transition-colors -mt-0.5">
+          <button onClick={handleClose} className="p-1.5 hover:bg-muted rounded-lg transition-colors -mt-0.5 flex-shrink-0">
             <X size={18} className="text-muted-foreground" />
           </button>
         </div>

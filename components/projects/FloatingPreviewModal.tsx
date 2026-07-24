@@ -5,11 +5,6 @@ import { createPortal } from 'react-dom';
 import { Printer } from 'lucide-react';
 import { InvoicePreview, InvoicePreviewData } from '@/components/projects/InvoicePreview';
 
-// ── Floating live preview modal ──────────────────────────────────────────────
-// Sits to the LEFT of the invoice editor side panel. Smaller than the full
-// preview modal — a floating card with the A4 invoice inside. Updates live as
-// the form state changes.
-
 export interface FloatingPreviewModalProps {
   data: InvoicePreviewData;
   onClose: () => void;
@@ -49,7 +44,7 @@ export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProp
 
   return createPortal(
     <div
-      className={`fixed z-30 transition-all duration-280 print:hidden ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+      className={`fixed z-50 transition-all duration-280 print:hidden ${visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
       style={{
         top: '50%',
         left: '50%',
@@ -61,7 +56,6 @@ export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProp
         style={{ width: 'min(42vw, 560px)', height: 'min(82vh, 760px)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Toolbar */}
         <div className="flex items-center justify-between px-4 py-2.5 border-b border-border flex-shrink-0">
           <div className="min-w-0">
             <p className="text-sm font-semibold truncate">Live Preview</p>
@@ -73,7 +67,6 @@ export function FloatingPreviewModal({ data, onClose }: FloatingPreviewModalProp
           </button>
         </div>
 
-        {/* Preview area */}
         <div className="flex-1 min-h-0 overflow-y-auto modal-scroll bg-muted/20 print:overflow-visible">
           <InvoicePreview data={data} />
         </div>
