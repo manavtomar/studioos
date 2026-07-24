@@ -98,6 +98,7 @@ export default function ProjectWorkspacePage() {
     return exists ? prev.map(x => x.id === p.id ? p : x) : [...prev, p];
   });
   const handleDeletePhase = (pid: string) => setCustomPhases(prev => prev.filter(x => x.id !== pid));
+  const handleReorderPhases = (reordered: GanttPhase[]) => setCustomPhases(reordered);
 
   return (
     <>
@@ -180,7 +181,7 @@ export default function ProjectWorkspacePage() {
         )}
 
         {activeTab === 'Timeline' && (
-          <TimelineTab project={project} customPhases={customPhases} customMilestones={customMilestones} onAddPhase={handleAddPhase} onEditPhase={handleEditPhase} onDeletePhase={handleDeletePhase} onAddMilestone={(m) => setCustomMilestones(prev => [...prev, m])} />
+          <TimelineTab project={project} customPhases={customPhases} customMilestones={customMilestones} onAddPhase={handleAddPhase} onEditPhase={handleEditPhase} onDeletePhase={handleDeletePhase} onAddMilestone={(m) => setCustomMilestones(prev => [...prev, m])} onReorderPhases={handleReorderPhases} />
         )}
 
         {activeTab === 'Schedules' && (

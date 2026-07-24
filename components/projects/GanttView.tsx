@@ -37,6 +37,7 @@ interface GanttViewProps {
   onEditPhase?: (phase: GanttPhase) => void;
   onDeletePhase?: (id: string) => void;
   onAddMilestone?: (m: GanttMilestone) => void;
+  onReorderPhases?: (phases: GanttPhase[]) => void;
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -355,6 +356,7 @@ export function GanttView({
   onAddPhase,
   onEditPhase,
   onDeletePhase,
+  onReorderPhases,
 }: GanttViewProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -363,6 +365,10 @@ export function GanttView({
   const [showAddPanel, setShowAddPanel] = useState(false);
   const [editingPhase, setEditingPhase] = useState<GanttPhase | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Drag-and-drop reorder state
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const config = ZOOM_CONFIGS[zoom];
 
@@ -482,14 +488,41 @@ export function GanttView({
               </div>
             </div>
 
-            {/* Phase rows — each aligns with a bar row in Column 2 */}
+            {/* Phase rows — each aligns with a bar row in Column 2. Draggable to reorder. */}
             {phases.map((phase) => {
               const isCurrent = phase.name === currentPhase;
+              const isDragging = draggedId === phase.id;
+              const isDragOver = dragOverId === phase.id && draggedId !== phase.id;
               return (
                 <div
                   key={phase.id}
-                  className={`flex items-center gap-2.5 w-full px-4 transition-colors text-left border-b border-border/20 ${isCurrent ? 'bg-muted/40' : 'hover:bg-muted/20'}`}
-                  style={{ height: PHASE_ROW_H }}
+                  draggable
+                  onDragStart={(e) => {
+                    setDraggedId(phase.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', phase.id);
+                  }}
+                  onDragEnd={() => { setDraggedId(null); setDragOverId(null); }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggedId && draggedId !== phase.id) setDragOverId(phase.id);
+                  }}
+                  onDragLeave={() => setDragOverId(prev => prev === phase.id ? null : prev)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (!draggedId || draggedId === phase.id) return;
+                    const fromIdx = phases.findIndex(p => p.id === draggedId);
+                    const toIdx = phases.findIndex(p => p.id === phase.id);
+                    if (fromIdx < 0 || toIdx < 0) return;
+                    const reordered = [...phases];
+                    const [moved] = reordered.splice(fromIdx, 1);
+                    reordered.splice(toIdx, 0, moved);
+                    onReorderPhases?.(reordered);
+                    setDraggedId(null);
+                    setDragOverId(null);
+                  }}
+                  className={`flex items-center gap-2.5 w-full px-4 transition-colors text-left border-b border-border/20 ${isCurrent ? 'bg-muted/40' : 'hover:bg-muted/20'} ${isDragging ? 'opacity-40' : ''} ${isDragOver ? 'border-t-2 border-t-foreground' : ''}`}
+                  style={{ height: PHASE_ROW_H, cursor: isDragging ? 'grabbing' : 'grab' }}
                 >
                   <button
                     onClick={() => setEditingPhase(phase)}

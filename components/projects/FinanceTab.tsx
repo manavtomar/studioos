@@ -4,9 +4,10 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Plus, Ellipsis as MoreHorizontal, Eye, FileDown, Trash2, Receipt, TrendingUp, FileText, CircleAlert as AlertCircle, Printer, Pencil, ChevronDown, Check } from 'lucide-react';
 import { Project, Invoice, InvoiceLineItem, formatBudget } from '@/lib/projects-data';
+import { SidePanel } from '@/components/ui/SidePanel';
 import { DatePicker } from '@/components/ui/DatePicker';
-import { InvoiceEditorLayout } from '@/components/projects/InvoiceEditorLayout';
 import { InvoicePreview, InvoicePreviewData, invoiceToPreviewData } from '@/components/projects/InvoicePreview';
+import { FloatingPreviewModal } from '@/components/projects/FloatingPreviewModal';
 
 interface FinanceTabProps {
   project: Project;
@@ -28,6 +29,12 @@ interface LineItem { id: string; description: string; hours: string; rate: strin
 function emptyLine(): LineItem { return { id: `li-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, description: '', hours: '', rate: '' }; }
 function toISODate(d: Date): string { return d.toISOString().slice(0, 10); }
 function lineAmount(l: LineItem): number { return (parseFloat(l.hours) || 0) * (parseFloat(l.rate) || 0); }
+function fmtDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
 
 // ── Portal dropdown (escapes overflow-hidden containers) ─────────────────────
 interface PortalMenuProps {
@@ -60,7 +67,276 @@ function PortalMenu({ anchorRect, onClose, children }: PortalMenuProps) {
   );
 }
 
-// ── Add Invoice Side Panel ───────────────────────────────────────────────────
+// ── Status dropdown (shared) ─────────────────────────────────────────────────
+function StatusDropdown({ value, onChange }: { value: Invoice['status']; onChange: (s: Invoice['status']) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="notion-button border border-border w-full justify-between text-sm"
+      >
+        <span className="flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeColors[value] || 'bg-muted text-muted-foreground'}`}>{value}</span>
+        </span>
+        <ChevronDown size={14} className="text-muted-foreground" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+            {(['Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
+              <button
+                key={s}
+                onClick={() => { onChange(s); setOpen(false); }}
+                className="flex items-center justify-between w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors whitespace-nowrap"
+              >
+                <span className={value === s ? 'text-foreground font-medium' : 'text-muted-foreground'}>{s}</span>
+                {value === s && <Check size={14} />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Shared invoice form fields ───────────────────────────────────────────────
+// Renders the full invoice form body. Used by both Add and Edit panels so they
+// stay identical.
+
+interface InvoiceFormFieldsProps {
+  invoiceDate: string;
+  setInvoiceDate: (v: string) => void;
+  invoiceNumber: string;
+  setInvoiceNumber: (v: string) => void;
+  clientName: string;
+  setClientName: (v: string) => void;
+  clientAddress: string;
+  setClientAddress: (v: string) => void;
+  companyName: string;
+  setCompanyName: (v: string) => void;
+  companyAddress: string;
+  setCompanyAddress: (v: string) => void;
+  companySuburb: string;
+  setCompanySuburb: (v: string) => void;
+  abn: string;
+  setAbn: (v: string) => void;
+  accountHolder: string;
+  setAccountHolder: (v: string) => void;
+  bsb: string;
+  setBsb: (v: string) => void;
+  accountNo: string;
+  setAccountNo: (v: string) => void;
+  bankName: string;
+  setBankName: (v: string) => void;
+  bicSwift: string;
+  setBicSwift: (v: string) => void;
+  referenceDesc: string;
+  setReferenceDesc: (v: string) => void;
+  dueDate: string;
+  setDueDate: (v: string) => void;
+  dueOnReceipt: boolean;
+  setDueOnReceipt: (v: boolean) => void;
+  status: Invoice['status'];
+  setStatus: (s: Invoice['status']) => void;
+  lines: LineItem[];
+  setLines: React.Dispatch<React.SetStateAction<LineItem[]>>;
+  notes: string;
+  setNotes: (v: string) => void;
+  subtotal: number;
+}
+
+function InvoiceFormFields(props: InvoiceFormFieldsProps) {
+  const {
+    invoiceDate, setInvoiceDate, invoiceNumber, setInvoiceNumber,
+    clientName, setClientName, clientAddress, setClientAddress,
+    companyName, setCompanyName, companyAddress, setCompanyAddress, companySuburb, setCompanySuburb,
+    abn, setAbn,
+    accountHolder, setAccountHolder, bsb, setBsb, accountNo, setAccountNo, bankName, setBankName, bicSwift, setBicSwift,
+    referenceDesc, setReferenceDesc,
+    dueDate, setDueDate, dueOnReceipt, setDueOnReceipt,
+    status, setStatus,
+    lines, setLines,
+    notes, setNotes,
+    subtotal,
+  } = props;
+
+  const addLine = () => setLines(prev => [...prev, emptyLine()]);
+  const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
+  const updateLine = (id: string, field: keyof LineItem, value: string) =>
+    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
+
+  return (
+    <div className="px-6 py-5 space-y-6">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1.5">Invoice Date *</label>
+          <DatePicker value={invoiceDate ? fmtDate(invoiceDate) : ''} onChange={(v) => { const d = new Date(v); if (!isNaN(d.getTime())) setInvoiceDate(toISODate(d)); }} placeholder="Select date" />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1.5">Invoice Number *</label>
+          <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="YY001.001" className="modal-input" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-foreground mb-1.5">Bill To *</label>
+            <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client Name" className="modal-input mb-2" />
+            <textarea value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Client Address&#10;Suburb State Postcode&#10;Country" rows={3} className="modal-input resize-none" />
+          </div>
+        </div>
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-foreground mb-1.5">Company Information</label>
+          <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" className="modal-input" />
+          <input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="Address" className="modal-input" />
+          <input value={companySuburb} onChange={e => setCompanySuburb(e.target.value)} placeholder="Suburb State Postcode, Australia" className="modal-input" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className="block text-xs font-semibold text-foreground mb-1.5">Payment Information</label>
+          <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} placeholder="Account Holder" className="modal-input" />
+          <div className="grid grid-cols-2 gap-2">
+            <input value={bsb} onChange={e => setBsb(e.target.value)} placeholder="BSB" className="modal-input" />
+            <input value={accountNo} onChange={e => setAccountNo(e.target.value)} placeholder="Account No" className="modal-input" />
+          </div>
+          <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" className="modal-input" />
+          <input value={bicSwift} onChange={e => setBicSwift(e.target.value)} placeholder="BIC/SWIFT Code" className="modal-input" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-foreground mb-1.5">ABN</label>
+          <input value={abn} onChange={e => setAbn(e.target.value)} placeholder="12 345 678 910" className="modal-input" />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs font-semibold text-foreground mb-1.5">Reference Description</label>
+          <input value={referenceDesc} onChange={e => setReferenceDesc(e.target.value)} placeholder="Reference Description" className="modal-input" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-foreground mb-1.5">Due Date</label>
+          <div className="flex items-center gap-2 mb-2">
+            <input type="checkbox" id="on-receipt" checked={dueOnReceipt} onChange={e => setDueOnReceipt(e.target.checked)} className="rounded" />
+            <label htmlFor="on-receipt" className="text-sm text-muted-foreground">Upon Receipt</label>
+          </div>
+          {!dueOnReceipt && (
+            <DatePicker value={dueDate ? fmtDate(dueDate) : ''} onChange={(v) => { const d = new Date(v); if (!isNaN(d.getTime())) setDueDate(toISODate(d)); }} placeholder="Select date" />
+          )}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-foreground mb-2">Line Items</label>
+        <div className="border border-border rounded-xl overflow-hidden">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border">
+                <th className="text-left text-xs text-muted-foreground font-medium px-3 py-2">Description</th>
+                <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-20">Hours</th>
+                <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-28">Hourly Rate AUD</th>
+                <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-28">Amount AUD</th>
+                <th className="w-8" />
+              </tr>
+            </thead>
+            <tbody>
+              {lines.map(line => (
+                <tr key={line.id} className="border-b border-border/40 last:border-b-0">
+                  <td className="px-3 py-2">
+                    <input value={line.description} onChange={e => updateLine(line.id, 'description', e.target.value)} placeholder="Description" className="w-full text-sm outline-none bg-transparent" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="number" value={line.hours} onChange={e => updateLine(line.id, 'hours', e.target.value)} placeholder="0.00" className="w-full text-sm text-right outline-none bg-transparent" />
+                  </td>
+                  <td className="px-3 py-2">
+                    <input type="number" value={line.rate} onChange={e => updateLine(line.id, 'rate', e.target.value)} placeholder="$" className="w-full text-sm text-right outline-none bg-transparent" />
+                  </td>
+                  <td className="px-3 py-2 text-right text-sm">${lineAmount(line).toFixed(2)}</td>
+                  <td className="px-2 py-2">
+                    {lines.length > 1 && (
+                      <button onClick={() => removeLine(line.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
+                        <Trash2 size={13} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-3 py-2 border-t border-border/40">
+            <button onClick={addLine} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Plus size={13} />
+              Add line item
+            </button>
+          </div>
+        </div>
+
+        <div className="flex justify-end mt-3">
+          <div className="w-56 space-y-1.5">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Subtotal</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-semibold border-t border-border pt-1.5">
+              <span>TOTAL AUD</span>
+              <span>${subtotal.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1.5">Status</label>
+          <StatusDropdown value={status} onChange={setStatus} />
+        </div>
+        <div>
+          <label className="block text-xs text-muted-foreground mb-1.5">Notes</label>
+          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={2} className="modal-input resize-none" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Build live preview data from form state ──────────────────────────────────
+function buildPreviewData(p: {
+  invoiceNumber: string; clientName: string; clientAddress: string;
+  companyName: string; companyAddress: string; companySuburb: string;
+  abn: string; accountHolder: string; bsb: string; accountNo: string;
+  bankName: string; bicSwift: string; referenceDesc: string;
+  invoiceDate: string; dueOnReceipt: boolean; dueDate: string;
+  status: Invoice['status']; lines: LineItem[]; notes: string; subtotal: number;
+}): InvoicePreviewData {
+  return {
+    number: p.invoiceNumber,
+    clientName: p.clientName,
+    clientAddress: p.clientAddress,
+    companyName: p.companyName,
+    companyAddress: p.companyAddress,
+    companySuburb: p.companySuburb,
+    abn: p.abn,
+    accountHolder: p.accountHolder,
+    bsb: p.bsb,
+    accountNo: p.accountNo,
+    bankName: p.bankName,
+    bicSwift: p.bicSwift,
+    referenceDesc: p.referenceDesc,
+    issuedDate: p.invoiceDate ? fmtDate(p.invoiceDate) : '',
+    dueDate: p.dueOnReceipt ? 'Upon Receipt' : (p.dueDate ? fmtDate(p.dueDate) : ''),
+    status: p.status,
+    lineItems: p.lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
+    notes: p.notes,
+    amount: p.subtotal,
+  };
+}
+
+// ── Add Invoice Panel (SidePanel + floating preview) ─────────────────────────
 interface AddInvoicePanelProps {
   project: Project;
   onClose: () => void;
@@ -87,37 +363,14 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
   const [status, setStatus] = useState<Invoice['status']>('Issued');
   const [lines, setLines] = useState<LineItem[]>([emptyLine()]);
   const [notes, setNotes] = useState('');
-  const [statusOpen, setStatusOpen] = useState(false);
 
   const subtotal = useMemo(() => lines.reduce((s, l) => s + lineAmount(l), 0), [lines]);
 
-  // Live preview data — derived from current form state, not a second model.
-  const previewData: InvoicePreviewData = useMemo(() => ({
-    number: invoiceNumber,
-    clientName,
-    clientAddress,
-    companyName,
-    companyAddress,
-    companySuburb,
-    abn,
-    accountHolder,
-    bsb,
-    accountNo,
-    bankName,
-    bicSwift,
-    referenceDesc,
-    issuedDate: invoiceDate ? new Date(invoiceDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
-    dueDate: dueOnReceipt ? 'Upon Receipt' : (dueDate ? new Date(dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''),
-    status,
-    lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
-    notes,
-    amount: subtotal,
+  const previewData = useMemo(() => buildPreviewData({
+    invoiceNumber, clientName, clientAddress, companyName, companyAddress, companySuburb,
+    abn, accountHolder, bsb, accountNo, bankName, bicSwift, referenceDesc,
+    invoiceDate, dueOnReceipt, dueDate, status, lines, notes, subtotal,
   }), [invoiceNumber, clientName, clientAddress, companyName, companyAddress, companySuburb, abn, accountHolder, bsb, accountNo, bankName, bicSwift, referenceDesc, invoiceDate, dueOnReceipt, dueDate, status, lines, notes, subtotal]);
-
-  const addLine = () => setLines(prev => [...prev, emptyLine()]);
-  const removeLine = (id: string) => setLines(prev => prev.filter(l => l.id !== id));
-  const updateLine = (id: string, field: keyof LineItem, value: string) =>
-    setLines(prev => prev.map(l => l.id === id ? { ...l, [field]: value } : l));
 
   const canSave = invoiceDate && invoiceNumber && clientName;
 
@@ -129,8 +382,8 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
       clientName,
       clientAddress,
       amount: subtotal,
-      issuedDate: new Date(invoiceDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }),
-      dueDate: dueOnReceipt ? 'Upon Receipt' : (dueDate ? new Date(dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''),
+      issuedDate: fmtDate(invoiceDate),
+      dueDate: dueOnReceipt ? 'Upon Receipt' : (dueDate ? fmtDate(dueDate) : ''),
       status,
       companyName,
       companyAddress,
@@ -149,187 +402,53 @@ function AddInvoicePanel({ project, onClose, onSave }: AddInvoicePanelProps) {
   };
 
   return (
-    <InvoiceEditorLayout
-      title="New Invoice"
-      subtitle={project.name}
-      previewData={previewData}
-      onClose={onClose}
-      footer={
-        <>
-          <div />
-          <div className="flex gap-2">
-            <button onClick={onClose} className="notion-button border border-border">Cancel</button>
-            <button onClick={handleSave} disabled={!canSave} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
-              Create Invoice
-            </button>
-          </div>
-        </>
-      }
-    >
-      <div className="px-6 py-5 space-y-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Invoice Date *</label>
-            <DatePicker value={invoiceDate ? new Date(invoiceDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} onChange={(v) => { const d = new Date(v); if (!isNaN(d.getTime())) setInvoiceDate(toISODate(d)); }} placeholder="Select date" />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Invoice Number *</label>
-            <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="YY001.001" className="modal-input" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-foreground mb-1.5">Bill To *</label>
-              <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client Name" className="modal-input mb-2" />
-              <textarea value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Client Address&#10;Suburb State Postcode&#10;Country" rows={3} className="modal-input resize-none" />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-foreground mb-1.5">Company Information</label>
-            <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" className="modal-input" />
-            <input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="Address" className="modal-input" />
-            <input value={companySuburb} onChange={e => setCompanySuburb(e.target.value)} placeholder="Suburb State Postcode, Australia" className="modal-input" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-foreground mb-1.5">Payment Information</label>
-            <input value={accountHolder} onChange={e => setAccountHolder(e.target.value)} placeholder="Account Holder" className="modal-input" />
-            <div className="grid grid-cols-2 gap-2">
-              <input value={bsb} onChange={e => setBsb(e.target.value)} placeholder="BSB" className="modal-input" />
-              <input value={accountNo} onChange={e => setAccountNo(e.target.value)} placeholder="Account No" className="modal-input" />
-            </div>
-            <input value={bankName} onChange={e => setBankName(e.target.value)} placeholder="Bank Name" className="modal-input" />
-            <input value={bicSwift} onChange={e => setBicSwift(e.target.value)} placeholder="BIC/SWIFT Code" className="modal-input" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">ABN</label>
-            <input value={abn} onChange={e => setAbn(e.target.value)} placeholder="12 345 678 910" className="modal-input" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">Reference Description</label>
-            <input value={referenceDesc} onChange={e => setReferenceDesc(e.target.value)} placeholder="Reference Description" className="modal-input" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1.5">Due Date</label>
-            <div className="flex items-center gap-2 mb-2">
-              <input type="checkbox" id="on-receipt" checked={dueOnReceipt} onChange={e => setDueOnReceipt(e.target.checked)} className="rounded" />
-              <label htmlFor="on-receipt" className="text-sm text-muted-foreground">Upon Receipt</label>
-            </div>
-            {!dueOnReceipt && (
-              <DatePicker value={dueDate ? new Date(dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} onChange={(v) => { const d = new Date(v); if (!isNaN(d.getTime())) setDueDate(toISODate(d)); }} placeholder="Select date" />
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-foreground mb-2">Line Items</label>
-          <div className="border border-border rounded-xl overflow-hidden">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-muted/30 border-b border-border">
-                  <th className="text-left text-xs text-muted-foreground font-medium px-3 py-2">Description</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-20">Hours</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-28">Hourly Rate AUD</th>
-                  <th className="text-right text-xs text-muted-foreground font-medium px-3 py-2 w-28">Amount AUD</th>
-                  <th className="w-8" />
-                </tr>
-              </thead>
-              <tbody>
-                {lines.map(line => (
-                  <tr key={line.id} className="border-b border-border/40 last:border-b-0">
-                    <td className="px-3 py-2">
-                      <input value={line.description} onChange={e => updateLine(line.id, 'description', e.target.value)} placeholder="Description" className="w-full text-sm outline-none bg-transparent" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input type="number" value={line.hours} onChange={e => updateLine(line.id, 'hours', e.target.value)} placeholder="0.00" className="w-full text-sm text-right outline-none bg-transparent" />
-                    </td>
-                    <td className="px-3 py-2">
-                      <input type="number" value={line.rate} onChange={e => updateLine(line.id, 'rate', e.target.value)} placeholder="$" className="w-full text-sm text-right outline-none bg-transparent" />
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm">${lineAmount(line).toFixed(2)}</td>
-                    <td className="px-2 py-2">
-                      {lines.length > 1 && (
-                        <button onClick={() => removeLine(line.id)} className="text-muted-foreground hover:text-red-500 transition-colors">
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="px-3 py-2 border-t border-border/40">
-              <button onClick={addLine} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                <Plus size={13} />
-                Add line item
+    <>
+      <FloatingPreviewModal data={previewData} onClose={onClose} />
+      <SidePanel
+        title="New Invoice"
+        subtitle={project.name}
+        onClose={onClose}
+        width="min(42vw, 640px)"
+        footer={
+          <>
+            <div />
+            <div className="flex gap-2">
+              <button onClick={onClose} className="notion-button border border-border">Cancel</button>
+              <button onClick={handleSave} disabled={!canSave} className="btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+                Create Invoice
               </button>
             </div>
-          </div>
-
-          <div className="flex justify-end mt-3">
-            <div className="w-56 space-y-1.5">
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-semibold border-t border-border pt-1.5">
-                <span>TOTAL AUD</span>
-                <span>${subtotal.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Status</label>
-            <div className="relative">
-              <button
-                onClick={() => setStatusOpen(!statusOpen)}
-                className="notion-button border border-border w-full justify-between text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeColors[status as Invoice['status']] || 'bg-muted text-muted-foreground'}`}>{status}</span>
-                </span>
-                <ChevronDown size={14} className="text-muted-foreground" />
-              </button>
-              {statusOpen && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setStatusOpen(false)} />
-                  <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                    {(['Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => { setStatus(s); setStatusOpen(false); }}
-                        className="flex items-center justify-between w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors whitespace-nowrap"
-                      >
-                        <span className={status === s ? 'text-foreground font-medium' : 'text-muted-foreground'}>{s}</span>
-                        {status === s && <Check size={14} />}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Notes</label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={2} className="modal-input resize-none" />
-          </div>
-        </div>
-      </div>
-    </InvoiceEditorLayout>
+          </>
+        }
+      >
+        <InvoiceFormFields
+          invoiceDate={invoiceDate} setInvoiceDate={setInvoiceDate}
+          invoiceNumber={invoiceNumber} setInvoiceNumber={setInvoiceNumber}
+          clientName={clientName} setClientName={setClientName}
+          clientAddress={clientAddress} setClientAddress={setClientAddress}
+          companyName={companyName} setCompanyName={setCompanyName}
+          companyAddress={companyAddress} setCompanyAddress={setCompanyAddress}
+          companySuburb={companySuburb} setCompanySuburb={setCompanySuburb}
+          abn={abn} setAbn={setAbn}
+          accountHolder={accountHolder} setAccountHolder={setAccountHolder}
+          bsb={bsb} setBsb={setBsb}
+          accountNo={accountNo} setAccountNo={setAccountNo}
+          bankName={bankName} setBankName={setBankName}
+          bicSwift={bicSwift} setBicSwift={setBicSwift}
+          referenceDesc={referenceDesc} setReferenceDesc={setReferenceDesc}
+          dueDate={dueDate} setDueDate={setDueDate}
+          dueOnReceipt={dueOnReceipt} setDueOnReceipt={setDueOnReceipt}
+          status={status} setStatus={setStatus}
+          lines={lines} setLines={setLines}
+          notes={notes} setNotes={setNotes}
+          subtotal={subtotal}
+        />
+      </SidePanel>
+    </>
   );
 }
 
-// ── Invoice Preview Modal (matches reference format) ─────────────────────────
+// ── Invoice Preview Modal (full-size, for viewing saved invoices) ────────────
 interface InvoicePreviewModalProps {
   invoice: Invoice;
   onClose: () => void;
@@ -341,16 +460,12 @@ function InvoicePreviewModal({ invoice, onClose }: InvoicePreviewModalProps) {
 
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 md:p-8 print:p-0 print:block">
-      {/* Frosted glass overlay */}
       <div
         className="absolute inset-0 transition-opacity print:hidden"
         style={{ background: 'rgba(220,218,212,0.55)', backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' }}
         onClick={onClose}
       />
-
-      {/* Modal container */}
       <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col bg-card rounded-2xl shadow-2xl overflow-hidden print:max-w-none print:max-h-none print:rounded-none print:shadow-none print:static print:w-full">
-        {/* Toolbar */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-border flex-shrink-0 print:hidden">
           <div>
             <h2 className="font-semibold text-base">{invoice.number}</h2>
@@ -364,8 +479,6 @@ function InvoicePreviewModal({ invoice, onClose }: InvoicePreviewModalProps) {
             <button onClick={onClose} className="notion-button border border-border">Close</button>
           </div>
         </div>
-
-        {/* Invoice document (scrollable, print target) */}
         <div className="flex-1 overflow-y-auto modal-scroll print:overflow-visible print:max-h-none">
           <InvoicePreview data={invoiceToPreviewData(invoice)} />
         </div>
@@ -374,8 +487,7 @@ function InvoicePreviewModal({ invoice, onClose }: InvoicePreviewModalProps) {
   );
 }
 
-
-// ── Edit Invoice Side Panel ──────────────────────────────────────────────────
+// ── Edit Invoice Panel (same full form as Add, pre-filled) ───────────────────
 interface EditInvoicePanelProps {
   invoice: Invoice;
   onClose: () => void;
@@ -383,161 +495,121 @@ interface EditInvoicePanelProps {
 }
 
 function EditInvoicePanel({ invoice, onClose, onSave }: EditInvoicePanelProps) {
-  const [number, setNumber] = useState(invoice.number);
+  const [invoiceDate, setInvoiceDate] = useState('');
+  const [invoiceNumber, setInvoiceNumber] = useState(invoice.number);
   const [clientName, setClientName] = useState(invoice.clientName);
   const [clientAddress, setClientAddress] = useState(invoice.clientAddress || '');
-  const [amount, setAmount] = useState(String(invoice.amount));
-  const [issuedDate, setIssuedDate] = useState(invoice.issuedDate || '');
-  const [dueDate, setDueDate] = useState(invoice.dueDate || '');
-  const [status, setStatus] = useState<Invoice['status']>(invoice.status);
-  const [companyName, setCompanyName] = useState(invoice.companyName || '');
+  const [companyName, setCompanyName] = useState(invoice.companyName || 'ergonome studio');
   const [companyAddress, setCompanyAddress] = useState(invoice.companyAddress || '');
+  const [companySuburb, setCompanySuburb] = useState(invoice.companySuburb || '');
   const [abn, setAbn] = useState(invoice.abn || '');
+  const [accountHolder, setAccountHolder] = useState(invoice.accountHolder || '');
+  const [bsb, setBsb] = useState(invoice.bsb || '');
+  const [accountNo, setAccountNo] = useState(invoice.accountNo || '');
+  const [bankName, setBankName] = useState(invoice.bankName || '');
+  const [bicSwift, setBicSwift] = useState(invoice.bicSwift || '');
   const [referenceDesc, setReferenceDesc] = useState(invoice.referenceDesc || '');
+  const [dueDate, setDueDate] = useState('');
+  const [dueOnReceipt, setDueOnReceipt] = useState(false);
+  const [status, setStatus] = useState<Invoice['status']>(invoice.status);
+  const [lines, setLines] = useState<LineItem[]>(
+    invoice.lineItems && invoice.lineItems.length > 0
+      ? invoice.lineItems.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate }))
+      : [emptyLine()]
+  );
   const [notes, setNotes] = useState(invoice.notes || '');
 
-  const [statusOpen, setStatusOpen] = useState(false);
-  const statusRef = useRef<HTMLDivElement>(null);
+  // Parse the saved issued/due dates back into ISO format for the date pickers.
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (statusRef.current && !statusRef.current.contains(e.target as Node)) setStatusOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
+    if (invoice.issuedDate) {
+      const d = new Date(invoice.issuedDate);
+      if (!isNaN(d.getTime())) setInvoiceDate(toISODate(d));
+    }
+    if (invoice.dueDate) {
+      if (invoice.dueDate === 'Upon Receipt') {
+        setDueOnReceipt(true);
+      } else {
+        const d = new Date(invoice.dueDate);
+        if (!isNaN(d.getTime())) setDueDate(toISODate(d));
+      }
+    }
+  }, [invoice.issuedDate, invoice.dueDate]);
 
-  // Live preview data — derived from current form state, not a second model.
-  const previewData: InvoicePreviewData = useMemo(() => ({
-    number,
-    clientName,
-    clientAddress,
-    companyName,
-    companyAddress,
-    abn,
-    referenceDesc,
-    issuedDate,
-    dueDate,
-    status,
-    notes,
-    amount: parseFloat(amount) || 0,
-  }), [number, clientName, clientAddress, companyName, companyAddress, abn, referenceDesc, issuedDate, dueDate, status, notes, amount]);
+  const subtotal = useMemo(() => lines.reduce((s, l) => s + lineAmount(l), 0), [lines]);
+
+  const previewData = useMemo(() => buildPreviewData({
+    invoiceNumber, clientName, clientAddress, companyName, companyAddress, companySuburb,
+    abn, accountHolder, bsb, accountNo, bankName, bicSwift, referenceDesc,
+    invoiceDate, dueOnReceipt, dueDate, status, lines, notes, subtotal,
+  }), [invoiceNumber, clientName, clientAddress, companyName, companyAddress, companySuburb, abn, accountHolder, bsb, accountNo, bankName, bicSwift, referenceDesc, invoiceDate, dueOnReceipt, dueDate, status, lines, notes, subtotal]);
 
   const handleSave = () => {
     onSave({
       ...invoice,
-      number,
+      number: invoiceNumber,
       clientName,
       clientAddress,
-      amount: parseFloat(amount) || 0,
-      issuedDate,
-      dueDate,
+      amount: subtotal,
+      issuedDate: invoiceDate ? fmtDate(invoiceDate) : invoice.issuedDate,
+      dueDate: dueOnReceipt ? 'Upon Receipt' : (dueDate ? fmtDate(dueDate) : invoice.dueDate),
       status,
       companyName,
       companyAddress,
+      companySuburb,
       abn,
+      accountHolder,
+      bsb,
+      accountNo,
+      bankName,
+      bicSwift,
       referenceDesc,
+      lineItems: lines.map(l => ({ id: l.id, description: l.description, hours: l.hours, rate: l.rate })),
       notes,
     });
   };
 
   return (
-    <InvoiceEditorLayout
-      title="Edit Invoice"
-      subtitle={invoice.number}
-      previewData={previewData}
-      onClose={onClose}
-      footer={
-        <>
-          <div />
-          <div className="flex gap-2">
-            <button onClick={onClose} className="notion-button border border-border">Cancel</button>
-            <button onClick={handleSave} className="btn-primary">Save Changes</button>
-          </div>
-        </>
-      }
-    >
-      <div className="px-6 py-5 space-y-5">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Invoice Number *</label>
-            <input value={number} onChange={e => setNumber(e.target.value)} className="modal-input" />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Status</label>
-            <div className="relative" ref={statusRef}>
-              <button
-                onClick={() => setStatusOpen(!statusOpen)}
-                className="notion-button border border-border w-full justify-between text-sm"
-              >
-                <span className="flex items-center gap-2">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadgeColors[invoice.status] || 'bg-muted text-muted-foreground'}`}>{status}</span>
-                </span>
-                <ChevronDown size={14} className="text-muted-foreground" />
-              </button>
-              {statusOpen && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setStatusOpen(false)} />
-                  <div className="absolute left-0 right-0 mt-1 bg-popover border border-border rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-                    {(['Issued', 'Paid', 'Unpaid', 'Overdue'] as Invoice['status'][]).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => { setStatus(s); setStatusOpen(false); }}
-                        className="flex items-center justify-between w-full px-4 py-2 text-sm text-left hover:bg-muted transition-colors whitespace-nowrap"
-                      >
-                        <span className={status === s ? 'text-foreground font-medium' : 'text-muted-foreground'}>{s}</span>
-                        {status === s && <Check size={14} />}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
+    <>
+      <FloatingPreviewModal data={previewData} onClose={onClose} />
+      <SidePanel
+        title="Edit Invoice"
+        subtitle={invoice.number}
+        onClose={onClose}
+        width="min(42vw, 640px)"
+        footer={
+          <>
+            <div />
+            <div className="flex gap-2">
+              <button onClick={onClose} className="notion-button border border-border">Cancel</button>
+              <button onClick={handleSave} className="btn-primary">Save Changes</button>
             </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">Bill To *</label>
-          <input value={clientName} onChange={e => setClientName(e.target.value)} placeholder="Client Name" className="modal-input mb-2" />
-          <textarea value={clientAddress} onChange={e => setClientAddress(e.target.value)} placeholder="Client Address" rows={2} className="modal-input resize-none" />
-        </div>
-
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">From</label>
-          <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Company name" className="modal-input mb-2" />
-          <input value={companyAddress} onChange={e => setCompanyAddress(e.target.value)} placeholder="Company address" className="modal-input" />
-        </div>
-
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">ABN</label>
-          <input value={abn} onChange={e => setAbn(e.target.value)} placeholder="12 345 678 910" className="modal-input" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Amount (AUD)</label>
-            <input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="modal-input" />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Reference</label>
-            <input value={referenceDesc} onChange={e => setReferenceDesc(e.target.value)} className="modal-input" />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Issued Date</label>
-            <DatePicker value={issuedDate} onChange={setIssuedDate} placeholder="Select date" />
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1.5">Due Date</label>
-            <DatePicker value={dueDate ? new Date(dueDate).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} onChange={(v) => { const d = new Date(v); if (!isNaN(d.getTime())) setDueDate(toISODate(d)); }} placeholder="Select date" />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs text-muted-foreground mb-1.5">Notes</label>
-          <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Additional notes..." rows={3} className="modal-input resize-none" />
-        </div>
-      </div>
-    </InvoiceEditorLayout>
+          </>
+        }
+      >
+        <InvoiceFormFields
+          invoiceDate={invoiceDate} setInvoiceDate={setInvoiceDate}
+          invoiceNumber={invoiceNumber} setInvoiceNumber={setInvoiceNumber}
+          clientName={clientName} setClientName={setClientName}
+          clientAddress={clientAddress} setClientAddress={setClientAddress}
+          companyName={companyName} setCompanyName={setCompanyName}
+          companyAddress={companyAddress} setCompanyAddress={setCompanyAddress}
+          companySuburb={companySuburb} setCompanySuburb={setCompanySuburb}
+          abn={abn} setAbn={setAbn}
+          accountHolder={accountHolder} setAccountHolder={setAccountHolder}
+          bsb={bsb} setBsb={setBsb}
+          accountNo={accountNo} setAccountNo={setAccountNo}
+          bankName={bankName} setBankName={setBankName}
+          bicSwift={bicSwift} setBicSwift={setBicSwift}
+          referenceDesc={referenceDesc} setReferenceDesc={setReferenceDesc}
+          dueDate={dueDate} setDueDate={setDueDate}
+          dueOnReceipt={dueOnReceipt} setDueOnReceipt={setDueOnReceipt}
+          status={status} setStatus={setStatus}
+          lines={lines} setLines={setLines}
+          notes={notes} setNotes={setNotes}
+          subtotal={subtotal}
+        />
+      </SidePanel>
+    </>
   );
 }
 
@@ -596,7 +668,6 @@ export function FinanceTab({ project, onUpdateInvoices }: FinanceTabProps) {
   const [activeFilter, setActiveFilter] = useState<InvoiceFilter>('Issued');
   const [search, setSearch] = useState('');
   const [showAddPanel, setShowAddPanel] = useState(false);
-  const [detailInvoice, setDetailInvoice] = useState<Invoice | null>(null);
   const [editInvoice, setEditInvoice] = useState<Invoice | null>(null);
   const [previewInvoice, setPreviewInvoice] = useState<Invoice | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>(project.invoices || []);

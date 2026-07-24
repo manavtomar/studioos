@@ -12,6 +12,7 @@ interface TimelineTabProps {
   onEditPhase: (p: GanttPhase) => void;
   onDeletePhase: (id: string) => void;
   onAddMilestone: (m: GanttMilestone) => void;
+  onReorderPhases: (phases: GanttPhase[]) => void;
 }
 
 // Parse "Jan 2024" or "Dec 18, 2024" style date strings
@@ -35,7 +36,7 @@ function toISO(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-export function TimelineTab({ project, customPhases, customMilestones, onAddPhase, onEditPhase, onDeletePhase, onAddMilestone }: TimelineTabProps) {
+export function TimelineTab({ project, customPhases, customMilestones, onAddPhase, onEditPhase, onDeletePhase, onAddMilestone, onReorderPhases }: TimelineTabProps) {
   // Phases on the Gantt chart are only those manually added by the user.
   // Project settings dates and currentPhase do NOT auto-create Gantt bars.
   const allPhases = useMemo(() => customPhases, [customPhases]);
@@ -73,6 +74,7 @@ export function TimelineTab({ project, customPhases, customMilestones, onAddPhas
       onEditPhase={onEditPhase}
       onDeletePhase={onDeletePhase}
       onAddMilestone={onAddMilestone}
+      onReorderPhases={onReorderPhases}
     />
   );
 }
